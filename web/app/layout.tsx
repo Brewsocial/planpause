@@ -1,17 +1,19 @@
 import type { Metadata } from "next";
+import { Barlow_Condensed, IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
 import Link from "next/link";
 import { Account, AuthGate } from "@/components/AuthGate";
 import "./globals.css";
+
+// Schriften werden beim Bauen heruntergeladen und mit der App ausgeliefert: keine Verbindung zu Google im Browser
+const display = Barlow_Condensed({ subsets: ["latin"], weight: ["500", "600", "700"], variable: "--font-display" });
+const body = IBM_Plex_Sans({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--font-body" });
+const mono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-mono" });
 
 export const metadata: Metadata = { title: "Planpause", description: "Bestandsgrundrisse digitalisieren und prüfen" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="de">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" />
-      </head>
+    <html lang="de" className={`${display.variable} ${body.variable} ${mono.variable}`}>
       <body>
         <div className="wrap">
           <header className="top">

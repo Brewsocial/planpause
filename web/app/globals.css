@@ -4,9 +4,9 @@
   --accent: #1D5FA8; --accent-ink: #FFFFFF; --accent-soft: #E2ECF7;
   --wall: #C24A30; --wall-tint: #F6DDD5; --opening: #16212A; --estimated: #A8650E;
   --crit: #C8281E; --crit-soft: #FBE3E0; --warn: #A8650E; --warn-soft: #FBEED9; --info: #4E6170; --info-soft: #E6ECEF; --ok: #2C7A4B; --ok-soft: #DFF0E5;
-  --display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
-  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --display: var(--font-display), "Arial Narrow", system-ui, sans-serif;
+  --body: var(--font-body), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: var(--font-mono), ui-monospace, Menlo, monospace;
   --r: 6px;
   color-scheme: light;
 }
@@ -145,3 +145,10 @@ table.t td.n { font-family: var(--mono); font-variant-numeric: tabular-nums; tex
 .banner ul { margin: 6px 0; padding-left: 20px }
 .banner.warn { border-left-color: var(--warn); background: var(--warn-soft) }
 .banner.crit { border-left-color: var(--crit); background: var(--crit-soft) }
+
+/* Rechtstexte */
+.legal { padding: 24px; max-width: 760px; line-height: 1.6 }
+.legal h2 { margin-top: 28px; font-size: 22px }
+.legal h3 { margin-top: 18px; font-size: 17px }
+.legal ul { padding-left: 20px }
+.check-note { background: var(--warn-soft); color: inherit; padding: 0 4px; border-radius: 3px; font-size: 13px }
