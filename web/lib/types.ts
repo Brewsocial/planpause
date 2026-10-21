@@ -28,6 +28,6 @@ export interface Result {
   geometry: Geometry; issues: Issue[]; stats: Stats; quality?: Quality;
   image_transform: { x: { scale: number; offset: number }; y: { scale: number; offset: number } } | null;
 }
-export interface Meta { id: string; name: string; status: string; created: number; updated: number; error?: string | null; demo?: boolean; steps?: string[]; quality?: Quality["level"]; warnings?: string[]; cost_usd?: number; last_cost_usd?: number }
+export interface Meta { id: string; name: string; status: string; created: number; updated: number; error?: string | null; demo?: boolean; steps?: string[]; quality?: Quality["level"]; warnings?: string[]; cost_usd?: number; last_cost_usd?: number; analyses?: number[] }
 export interface Measurement { id: string; axis: Axis; a: string; b: string; value: number; note: string }
 export interface Project { meta: Meta; plan: { title?: string; measurements?: Measurement[]; questions?: { id: string; question: string; why: string; type: string; options: string[]; unit: string; topic: string }[] }; result: Result | Record<string, never>; answers: Record<string, string> }

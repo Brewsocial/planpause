@@ -3,7 +3,9 @@
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import PlanView from "@/components/PlanView";
+import Link from "next/link";
 import { api, costText, download, fmt } from "@/lib/api";
+import { statusBadge } from "@/lib/status";
 import type { Issue, MeasureHint, Project, Quality, Result } from "@/lib/types";
 
 const SEV_LABEL = { kritisch: "Kritisch", pruefen: "Prüfen", info: "Hinweis" } as const;
@@ -32,6 +34,7 @@ export default function ProjectPage() {
   const [img, setImg] = useState<{ url: string; w: number; h: number } | null>(null);
   const [unit, setUnit] = useState<"mm" | "cm" | "m">("mm");
   const [showAnyway, setShowAnyway] = useState(false);
+  const [zoom, setZoom] = useState(1);
   const listRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(() => api.get(id).then(setP).catch((e) => setErr(e.message)), [id]);
@@ -63,37 +66,48 @@ export default function ProjectPage() {
     if (!p || !confirm(`Projekt „${p.meta.name}“ endgültig löschen? Foto und Ergebnisse werden entfernt.`)) return;
     api.remove(id).then(() => { window.location.href = "/"; }).catch((e) => setErr(e.message));
   };
-  const deleteBtn = <button className="btn small danger" style={{ marginLeft: "auto" }} onClick={remove}>Projekt löschen</button>;
+  const analyze = () => api.analyze(id).then(load).catch((e) => setErr(e.message));
 
   if (err) return <p className="err">{err}</p>;
   if (!p) return <p className="muted">Lade Projekt …</p>;
 
-  if (!result) return (
-    <main className="sheet" style={{ padding: 20, display: "grid", gap: 12 }}>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "baseline" }}>
-        <h1>{p.meta.name}</h1>
-        {deleteBtn}
+  const [badge, badgeCls] = statusBadge(p.meta);
+  const header = (
+    <>
+      <Link href="/" className="back">‹ Projekte</Link>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 14px", alignItems: "center", marginBottom: 16 }}>
+        <h1 style={{ flex: "1 1 auto", minWidth: 0, overflowWrap: "anywhere" }}>{p.meta.name}</h1>
+        <button className="btn small danger" onClick={remove}>Löschen</button>
       </div>
-      {p.meta.status === "analyse" && <p>Claude liest den Plan. Das dauert meist ein bis drei Minuten …</p>}
+    </>
+  );
+
+  if (!result) return (
+    <main>
+      {header}
+      {p.meta.status === "analyse" && <Progress since={p.meta.analyses?.slice(-1)[0] ?? p.meta.updated} />}
       {p.meta.status === "fehler" && (
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-          <p className="err" style={{ margin: 0 }}>Die Analyse ist fehlgeschlagen: {p.meta.error}</p>
+        <div className="sheet summary">
+          <div className="badges"><span className="badge crit">Analyse fehlgeschlagen</span></div>
+          <p style={{ margin: 0 }}>{p.meta.error}</p>
           {costText(p.meta) && <span className="hint">KI-Kosten bisher: {costText(p.meta)}</span>}
-          <button className="btn" onClick={() => api.analyze(id).then(load).catch((e) => setErr(e.message))}>Erneut versuchen</button>
-        </div>)}
-      {p.meta.status === "aufbereitet" && !!p.meta.warnings?.length && (
-        <div className="banner warn">
-          <b>Bitte vor der Analyse prüfen</b>
-          <ul>{p.meta.warnings.map((w) => <li key={w}>{w}</li>)}</ul>
-          <span className="hint">Die KI-Analyse kostet pro Plan Guthaben. Mit einem besseren Foto wird das Ergebnis deutlich genauer.</span>
+          <div><button className="btn primary" onClick={analyze}>Erneut versuchen</button></div>
         </div>)}
       {p.meta.status === "aufbereitet" && (
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-          <span>Der Plan ist aufbereitet ({p.meta.steps?.join(", ")}).</span>
-          <button className="btn primary" onClick={() => api.analyze(id).then(load).catch((e) => setErr(e.message))}>
-            {p.meta.warnings?.length ? "Trotzdem analysieren" : "Analyse starten"}</button>
+        <div className="sheet summary">
+          {!!p.meta.warnings?.length && (
+            <div className="banner warn" style={{ margin: 0 }}>
+              <b>Bitte vor der Analyse prüfen</b>
+              <ul>{p.meta.warnings.map((w) => <li key={w}>{w}</li>)}</ul>
+              <span className="hint">Jede Analyse kostet KI-Guthaben. Mit einem besseren Foto wird das Ergebnis deutlich genauer.</span>
+            </div>)}
+          <p className="muted" style={{ margin: 0 }}>Das Foto ist aufbereitet{p.meta.steps?.length ? `: ${p.meta.steps.join(", ")}` : ""}.</p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button className="btn primary big" onClick={analyze}>{p.meta.warnings?.length ? "Trotzdem analysieren" : "Analyse starten"}</button>
+            {!!p.meta.warnings?.length && <Link className="btn big" href="/">Neues Foto</Link>}
+          </div>
         </div>)}
-      {img && <img src={img.url} alt="Aufbereiteter Plan" style={{ maxWidth: "100%", borderRadius: 4 }} />}
+      {img && <div className="sheet" style={{ padding: 8, marginTop: 16 }}><img src={img.url} alt="Aufbereiteter Plan" style={{ width: "100%", borderRadius: 12, display: "block" }} /></div>}
     </main>);
 
   const s = result.stats;
@@ -109,25 +123,27 @@ export default function ProjectPage() {
 
   return (
     <main>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "baseline", marginBottom: 10 }}>
-        <h1>{p.meta.name}</h1>
-        {p.meta.demo && <span className="hint">Beispielprojekt</span>}
-        {deleteBtn}
-      </div>
+      {header}
       {result.quality && result.quality.level !== "gut" && <QualityBanner q={result.quality} />}
       {result.quality?.level === "nicht_auswertbar" && !showAnyway ? (
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button className="btn" onClick={() => setShowAnyway(true)}>Ergebnis trotzdem ansehen</button>
-          <a className="btn primary" href="/">Neues Foto hochladen</a>
+          <Link className="btn primary big" href="/">Neues Foto aufnehmen</Link>
+          <button className="btn big" onClick={() => setShowAnyway(true)}>Ergebnis trotzdem ansehen</button>
         </div>
       ) : (<>
-      <div className="chips">
-        <span className="chip crit"><i />{open.kritisch} kritisch</span>
-        <span className="chip warn"><i />{open.pruefen} prüfen</span>
-        <span className="chip"><i />{open.info} Hinweise</span>
-        <span className={`chip ${s.conflicts === 0 ? "ok" : "crit"}`}><i />{s.conflicts === 0 ? "Maße widerspruchsfrei" : `${s.conflicts} Maßwidersprüche`}</span>
-        <span className="meta">{measured} % der Kanten vermaßt · {s.lines_from_area} aus Flächen · {s.lines_from_drawing} nach Zeichnung · Räume {s.rooms_ok}/{s.rooms_checked} bestätigt{costText(p.meta) && ` · KI-Kosten ${costText(p.meta)}`}</span>
-      </div>
+      <section className="sheet summary" aria-label="Zusammenfassung">
+        <div className="badges">
+          <span className={`badge ${badgeCls}`}>{badge}</span>
+          {p.meta.demo && <span className="badge">Beispielprojekt</span>}
+        </div>
+        <div className="facts">
+          <div className={open.kritisch ? "crit" : "ok"}><b>{open.kritisch}</b><span>kritische Punkte</span></div>
+          <div className={s.conflicts ? "crit" : "ok"}><b>{s.conflicts}</b><span>Maßwidersprüche</span></div>
+          <div className={measured < 50 ? "warn" : ""}><b>{measured} %</b><span>der Kanten vermaßt</span></div>
+          <div className={s.rooms_checked && s.rooms_ok < s.rooms_checked ? "warn" : ""}><b>{s.rooms_ok}/{s.rooms_checked}</b><span>Raumflächen bestätigt</span></div>
+        </div>
+        <span className="meta">{open.pruefen} zu prüfen · {open.info} Hinweise · {s.lines_from_area} Kanten aus Flächen · {s.lines_from_drawing} nach Zeichnung{costText(p.meta) && ` · KI-Kosten ${costText(p.meta)}`}</span>
+      </section>
 
       <div className="grid2">
         <section className="sheet sticky" aria-label="Plan">
@@ -137,14 +153,22 @@ export default function ProjectPage() {
               <button aria-pressed={view === "overlay"} onClick={() => setView("overlay")} disabled={!img || !result.image_transform}>Überlagert</button>
             </div>
             {view === "overlay" && <label className="check">Deckkraft <input type="range" min={0} max={100} value={opacity * 100} onChange={(e) => setOpacity(+e.target.value / 100)} /></label>}
-            <span style={{ display: "flex", gap: 12 }}>
-              <label className="check"><input type="checkbox" checked={pins} onChange={(e) => setPins(e.target.checked)} /> Prüfpunkte</label>
-              <label className="check"><input type="checkbox" checked={chains} onChange={(e) => setChains(e.target.checked)} /> Maßketten</label>
+            <span className="toggles">
+              <button className="toggle" aria-pressed={pins} onClick={() => setPins(!pins)}>Prüfpunkte</button>
+              <button className="toggle" aria-pressed={chains} onClick={() => setChains(!chains)}>Maßketten</button>
             </span>
           </div>
-          <div className="canvas">
-            <PlanView geom={result.geometry} issues={issues} selected={sel} onSelect={select} showPins={pins} showChains={chains}
-              image={view === "overlay" && img && result.image_transform ? { ...img, t: result.image_transform, opacity } : null} />
+          <div className="zoom-wrap">
+            <div className="canvas">
+              <div style={{ width: `${zoom * 100}%` }}>
+                <PlanView geom={result.geometry} issues={issues} selected={sel} onSelect={select} showPins={pins} showChains={chains}
+                  image={view === "overlay" && img && result.image_transform ? { ...img, t: result.image_transform, opacity } : null} />
+              </div>
+            </div>
+            <div className="zoom">
+              <button aria-label="Vergrößern" onClick={() => setZoom((z) => Math.min(4, z * 1.5))}>+</button>
+              <button aria-label="Verkleinern" onClick={() => setZoom((z) => Math.max(1, z / 1.5))} disabled={zoom <= 1}>−</button>
+            </div>
           </div>
           <div className="legend">
             <span><i style={{ background: "repeating-linear-gradient(45deg,var(--wall) 0 1.5px,var(--wall-tint) 1.5px 5px)", border: "1px solid var(--wall)" }} />Mauerwerk</span>
@@ -157,7 +181,7 @@ export default function ProjectPage() {
 
         <section className="sheet" aria-label="Prüfakte">
           <div className="tabs" role="tablist">
-            {([["pruefung", `Prüfung (${issues.length})`], ["messwerte", `Messwerte (${p.plan.measurements?.length ?? 0})`], ["ketten", "Maßketten"], ["raeume", "Räume"], ["fragen", "Fragen"], ["export", "Export"]] as [Tab, string][]).map(([k, l]) => (
+            {([["pruefung", `Prüfpunkte (${issues.length})`], ["messwerte", `Messwerte (${p.plan.measurements?.length ?? 0})`], ["ketten", "Maßketten"], ["raeume", "Räume"], ["fragen", "Fragen"], ["export", "Export"]] as [Tab, string][]).map(([k, l]) => (
               <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)}>{l}</button>))}
           </div>
 
@@ -306,5 +330,27 @@ function QualityBanner({ q }: { q: Quality }) {
         <ul className="hint">{q.tips.map((t) => <li key={t}>{t}</li>)}</ul>
       </>)}
     </div>
+  );
+}
+
+
+/** Analyse läuft: ehrliche Schritte (der Server meldet keinen Prozentwert) und vergangene Zeit. */
+function Progress({ since }: { since: number }) {
+  const [now, setNow] = useState(Date.now() / 1000);
+  useEffect(() => { const t = setInterval(() => setNow(Date.now() / 1000), 1000); return () => clearInterval(t); }, []);
+  const sec = Math.max(0, Math.round(now - since));
+  return (
+    <section className="sheet progress" aria-live="polite">
+      <div>
+        <div className="clock">{Math.floor(sec / 60)}:{String(sec % 60).padStart(2, "0")}</div>
+        <p className="lead">Die KI liest den Plan. Das dauert meist ein bis vier Minuten.</p>
+      </div>
+      <ol className="steps">
+        <li className="done"><span className="dot">✓</span><span><b>Foto aufbereitet</b> · entzerrt, gerade gerichtet, Kontrast ausgeglichen</span></li>
+        <li className="now"><span className="dot" /><span><b>Maßketten, Wände und Räume lesen</b></span></li>
+        <li><span className="dot">3</span><span>Maße nachrechnen und auf Fehler prüfen</span></li>
+      </ol>
+      <p className="hint" style={{ margin: 0 }}>Du kannst die Seite schließen, die Analyse läuft weiter. Das Ergebnis erscheint hier automatisch.</p>
+    </section>
   );
 }

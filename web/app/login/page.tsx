@@ -53,30 +53,29 @@ export default function Login() {
   const button = { login: "Anmelden", link: "Link senden", reset: "Link zum Zurücksetzen senden", setpw: "Passwort speichern" }[mode];
 
   return (
-    <main style={{ display: "grid", placeItems: "start center", paddingTop: 40 }}>
-      <form className="sheet upload" onSubmit={submit} style={{ width: "100%", maxWidth: 380, gridTemplateColumns: "1fr" }}>
+    <main>
+      <form className="sheet auth" onSubmit={submit}>
         <div>
-          <h2>{title}</h2>
-          <p className="hint" style={{ margin: "2px 0 0" }}>
+          <h1 style={{ fontSize: 30 }}>{title}</h1>
+          <p className="muted" style={{ margin: "6px 0 0" }}>
             {mode === "setpw" ? "Mindestens 8 Zeichen. Danach meldest du dich mit E-Mail und Passwort an." :
              "Planpause ist in der Testphase und nur auf Einladung nutzbar."}
           </p>
         </div>
         {mode !== "setpw" && (
-          <label>E-Mail<input type="text" inputMode="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></label>
+          <label className="field">E-Mail<input type="text" inputMode="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></label>
         )}
         {(mode === "login" || mode === "setpw") && (
-          <label>{mode === "setpw" ? "Neues Passwort" : "Passwort"}
+          <label className="field">{mode === "setpw" ? "Neues Passwort" : "Passwort"}
             <input type="password" autoComplete={mode === "setpw" ? "new-password" : "current-password"} minLength={mode === "setpw" ? 8 : undefined}
-              value={pw} onChange={(e) => setPw(e.target.value)} required
-              style={{ border: "1px solid var(--line)", borderRadius: 4, background: "var(--sheet)", padding: "7px 9px", fontSize: 14, color: "var(--ink)" }} />
+              value={pw} onChange={(e) => setPw(e.target.value)} required />
           </label>
         )}
-        <button className="btn primary" disabled={busy}>{button}</button>
+        <button className="btn primary big" disabled={busy}>{button}</button>
         {err && <p className="err" style={{ margin: 0 }}>{err}</p>}
         {msg && <p style={{ margin: 0 }}>{msg}</p>}
         {mode !== "setpw" && (
-          <div className="hint" style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+          <div className="links">
             {mode !== "login" && <a href="#" onClick={(e) => { e.preventDefault(); setMode("login"); }}>Mit Passwort anmelden</a>}
             {mode !== "link" && <a href="#" onClick={(e) => { e.preventDefault(); setMode("link"); }}>Link per E-Mail</a>}
             {mode !== "reset" && <a href="#" onClick={(e) => { e.preventDefault(); setMode("reset"); }}>Passwort vergessen</a>}

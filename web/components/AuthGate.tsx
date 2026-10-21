@@ -25,9 +25,9 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   }, [open, router]);
 
   if (denied) return (
-    <main className="sheet" style={{ padding: 24, maxWidth: 520 }}>
+    <main className="sheet auth">
       <h2>Kein Zugang zu Planpause</h2>
-      <p>{denied} Planpause ist in der Testphase nur auf Einladung nutzbar.</p>
+      <p className="muted">{denied} Planpause ist in der Testphase nur auf Einladung nutzbar.</p>
       <button className="btn" onClick={() => supabase?.auth.signOut().then(() => { window.location.href = "/login"; })}>Abmelden</button>
     </main>
   );
@@ -52,8 +52,8 @@ export function Account() {
 
   if (PUBLIC.includes(path)) return null;
   return (
-    <span className="org" style={{ display: "flex", gap: 10, alignItems: "center" }}>
-      <span>{org}{email && ` · ${email}`}</span>
+    <span className="org">
+      <span className="who">{org}{email && <span className="mail"> · {email}</span>}</span>
       {supabase && <button className="btn small" onClick={logout}>Abmelden</button>}
     </span>
   );
