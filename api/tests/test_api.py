@@ -144,3 +144,24 @@ def test_kosten_werden_am_projekt_summiert(client, monkeypatch):
     main._run_extraction("demo-betrieb", pid)
     m = client.get(f"/projects/{pid}", headers=H).json()["meta"]
     assert m["last_cost_usd"] == 1.33 and m["cost_usd"] == pytest.approx(1.64) and m["status"] == "fehler"
+
+
+def test_web_app_wird_mit_ausgeliefert(tmp_path, monkeypatch):
+    web = tmp_path / "out"
+    (web / "_next").mkdir(parents=True)
+    (web / "index.html").write_text("start"); (web / "login.html").write_text("login")
+    (web / "404.html").write_text("fehlt"); (web / "_next" / "a.js").write_text("js")
+    (tmp_path / "geheim.txt").write_text("nein")
+    monkeypatch.setenv("PLANPAUSE_STATIC_DIR", str(web))
+    monkeypatch.setenv("PLANPAUSE_DATA", str(tmp_path / "data"))
+    import importlib
+    import app.main as main
+    importlib.reload(main)
+    with TestClient(main.app) as c:
+        assert c.get("/").text == "start" and c.get("/login").text == "login" and c.get("/_next/a.js").text == "js"
+        assert c.get("/health").json()["ok"] is True  # API-Pfade bleiben erreichbar
+        assert c.get("/projects", headers=H).status_code == 200
+        r = c.get("/..%2Fgeheim.txt")
+        assert r.status_code == 404 and "nein" not in r.text
+    monkeypatch.delenv("PLANPAUSE_STATIC_DIR")
+    importlib.reload(main)

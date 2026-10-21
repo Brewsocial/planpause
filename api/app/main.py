@@ -321,3 +321,21 @@ def export(pid: str, fmt: Literal["dxf", "md", "json"], unit: Literal["mm", "cm"
         md = to_report(plan.title or meta["name"], result["geometry"], issues_from(result), store.read_json(o, pid, "answers.json", {}))
         return PlainTextResponse(md, headers={"Content-Disposition": f'attachment; filename="{slug}_pruefbericht.md"'})
     return {"plan": plan.model_dump(mode="json"), "result": result}
+
+
+# ------------------------------------------------------------------ Web-App (optional)
+# Mit PLANPAUSE_STATIC_DIR (Pfad zu web/out) liefert die API auch die statische Web-App aus:
+# eine Adresse für alles, z. B. hinter einem Cloudflare-Tunnel. Muss die letzte Route bleiben,
+# damit sie keine API-Pfade verdeckt.
+STATIC = Path(os.environ["PLANPAUSE_STATIC_DIR"]).resolve() if os.environ.get("PLANPAUSE_STATIC_DIR") else None
+
+if STATIC:
+    from fastapi.responses import FileResponse
+
+    @app.get("/{path:path}", include_in_schema=False)
+    def web_app(path: str):
+        for cand in (STATIC / path, STATIC / f"{path}.html", STATIC / path / "index.html"):
+            f = cand.resolve()
+            if f.is_file() and f.is_relative_to(STATIC):
+                return FileResponse(f)
+        return FileResponse(STATIC / "404.html", status_code=404)
