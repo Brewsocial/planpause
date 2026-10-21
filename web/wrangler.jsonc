@@ -11,6 +11,8 @@
     "run_worker_first": true
   },
   // API_ORIGIN wird im Cloudflare-Dashboard gepflegt und bei Deployments nicht überschrieben
+  // Adresse der Planpause-API (Tunnel zum Mac). Bei neuer Tunnel-Adresse hier ändern und pushen.
+  "vars": { "API_ORIGIN": "https://website-folders-styles-acer.trycloudflare.com" },
   "keep_vars": true,
   "observability": { "enabled": true }
 }
