@@ -93,16 +93,23 @@ Ist die E-Mail-Adresse schon von der anderen App registriert, verschickt Supabas
 
 **Hosting:** Supabase betreibt die Python-API nicht. Die API läuft als Docker-Container (`api/Dockerfile`) z. B. auf Render oder Fly.io in Frankfurt oder auf einem eigenen Server; die Web-App auf Vercel oder ebenfalls als Container. `PLANPAUSE_CORS` muss die Adresse der Web-App enthalten.
 
-## Online stellen (Cloudflare + Render)
+## Online stellen
 
-Die Web-App ist ein statischer Export (`web/out`) und läuft auf **Cloudflare Workers**, die API als Docker-Container auf **Render** (Frankfurt). Beide bauen bei jedem Push auf `main` neu.
+### Testphase: Web-App bei Cloudflare, API auf dem eigenen Mac (kostenlos)
 
-1. **Render** (render.com): *New → Blueprint*, Repository `planpause` wählen. Render liest `render.yaml` und fragt nach `ANTHROPIC_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `PLANPAUSE_CORS` und `PLANPAUSE_SITE_URL` (die beiden letzten = Adresse der Web-App; zunächst einen Platzhalter, nach Schritt 2 korrigieren). Das Admin-Token erzeugt Render selbst. Ergebnis: `https://planpause-api-xxxx.onrender.com`.
-2. **Cloudflare**: *Workers & Pages → Erstellen → Repository importieren*, Repository `planpause`. Stammverzeichnis (Root directory) **`web`**, Build-Befehl `npm run build`, Deploy-Befehl `npx wrangler deploy`. Unter *Einstellungen → Variablen* (Build-Variablen, sie werden beim Bauen eingesetzt): `NEXT_PUBLIC_API_URL` (Render-Adresse), `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Ergebnis: `https://planpause.<konto>.workers.dev`, später eigene Subdomain unter *Domains und Routen*.
-3. **Verbinden**: In Render `PLANPAUSE_CORS` und `PLANPAUSE_SITE_URL` auf die Cloudflare-Adresse setzen. In Supabase unter Authentication → URL Configuration `https://<cloudflare-adresse>/**` zu den Redirect URLs hinzufügen.
-4. **Prüfen**: `https://<render-adresse>/health` liefert `{"ok":true,"claude":true}`; die Cloudflare-Adresse zeigt die Login-Seite.
+Die Web-App läuft als Cloudflare Worker unter einer festen Adresse (`planpause.<konto>.workers.dev`). Der Worker (`web/worker/index.js`) liefert die Seiten aus und leitet API-Aufrufe an `API_ORIGIN` weiter: die Adresse eines Cloudflare-Tunnels zum Mac, auf dem `./scripts/demo.sh` läuft.
 
-Lokal: `npm run dev` (Entwicklung) oder `npm run preview` (statischer Export in der Cloudflare-Laufzeit, http://localhost:8787).
+1. Cloudflare-Dashboard → *Workers & Pages → Erstellen → Repository importieren* → GitHub-Repository `planpause`.
+2. Stammverzeichnis (Root directory) **`web`**, Build-Befehl `npm run build`, Deploy-Befehl `npx wrangler deploy`. Weitere Build-Variablen sind nicht nötig, die öffentlichen Supabase-Werte stehen in `web/.env.production`.
+3. Nach dem ersten Deployment unter *Einstellungen → Variablen und Geheimnisse* die Variable `API_ORIGIN` mit der Tunnel-Adresse aus `./scripts/demo.sh` anlegen. Ändert sich die Tunnel-Adresse, nur diesen Wert anpassen (`keep_vars` verhindert, dass Deployments ihn überschreiben).
+
+Ist der Mac aus, lädt die Web-App trotzdem; die API antwortet dann mit „Planpause ist gerade nicht erreichbar“.
+
+### Später: API dauerhaft hosten (Render)
+
+Die API kann als Docker-Container auf Render laufen (`render.yaml`, Frankfurt): *New → Blueprint*, Repository wählen, Werte eintragen (`ANTHROPIC_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `PLANPAUSE_CORS`, `PLANPAUSE_SITE_URL`). Danach `API_ORIGIN` im Worker auf die Render-Adresse setzen.
+
+Lokal: `npm run dev` (Entwicklung) oder `npm run preview` (Worker mit statischem Export in der Cloudflare-Laufzeit).
 
 ## Mandanten (Betriebe)
 

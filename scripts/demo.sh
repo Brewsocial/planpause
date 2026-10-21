@@ -38,6 +38,9 @@ for _ in $(seq 1 45); do URL=$(grep -o "https://[a-z0-9-]*\.trycloudflare\.com" 
 echo
 echo "  Planpause ist erreichbar unter:  ${URL:-(Tunnel-Adresse nicht gefunden, siehe $LOG)}"
 echo
+echo "  Läuft die Web-App bei Cloudflare (Worker \"planpause\"): diese Adresse dort unter"
+echo "  Einstellungen → Variablen und Geheimnisse als API_ORIGIN eintragen."
+echo
 echo "  Der Mac darf nicht schlafen: am Netzteil lassen und den Deckel offen halten."
 echo "  Strg+C beendet Server und Tunnel."
 

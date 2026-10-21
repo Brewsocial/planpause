@@ -1,7 +1,7 @@
 import { supabase } from "./supabase";
 import type { Meta, Project, Result } from "./types";
 
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const BASE = process.env.NEXT_PUBLIC_API_URL ?? "";  // leer: API unter derselben Adresse wie die Web-App
 const KEY = process.env.NEXT_PUBLIC_API_KEY ?? "demo-schluessel";
 
 async function auth(): Promise<string> {

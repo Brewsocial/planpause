@@ -1,10 +1,16 @@
 {
-  // Cloudflare Workers: liefert den statischen Export aus "out" aus (kein Server-Code nötig)
+  // Cloudflare Worker: statische Web-App aus "out" plus Weiterleitung der API-Aufrufe (worker/index.js)
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "planpause",
+  "main": "worker/index.js",
   "compatibility_date": "2026-10-01",
   "assets": {
     "directory": "./out",
-    "not_found_handling": "404-page"
-  }
+    "binding": "ASSETS",
+    "not_found_handling": "404-page",
+    "run_worker_first": true
+  },
+  // API_ORIGIN wird im Cloudflare-Dashboard gepflegt und bei Deployments nicht überschrieben
+  "keep_vars": true,
+  "observability": { "enabled": true }
 }
