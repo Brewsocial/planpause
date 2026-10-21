@@ -1,0 +1,10 @@
+{
+  // Cloudflare Workers: liefert den statischen Export aus "out" aus (kein Server-Code nötig)
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "planpause",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./out",
+    "not_found_handling": "404-page"
+  }
+}

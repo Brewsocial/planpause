@@ -1,0 +1,26 @@
+[project]
+name = "planpause-engine"
+version = "0.1.0"
+description = "Genauigkeits-Engine für die Digitalisierung von Bestandsgrundrissen"
+requires-python = ">=3.11"
+dependencies = [
+  "numpy>=1.26",
+  "opencv-python-headless>=4.9,<5",
+  "pydantic>=2.6",
+  "ezdxf>=1.2",
+  "anthropic>=1.15",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["planpause_engine*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

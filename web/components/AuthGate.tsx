@@ -1,0 +1,60 @@
+"use client";
+
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { api } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
+
+const PUBLIC = ["/login", "/impressum", "/datenschutz"];
+
+/** Leitet ohne Anmeldung zur Login-Seite und zeigt den Betrieb im Kopf an. */
+export function AuthGate({ children }: { children: React.ReactNode }) {
+  const path = usePathname();
+  const router = useRouter();
+  const open = PUBLIC.includes(path);
+  const [ready, setReady] = useState(!supabase || open);
+  const [denied, setDenied] = useState("");
+
+  useEffect(() => {
+    if (!supabase || open) { setReady(true); return; }
+    supabase.auth.getSession().then(({ data }) => {
+      if (!data.session) { router.replace("/login"); return; }
+      // Das Supabase-Projekt kann Konten anderer Apps enthalten: Zugang nur mit Betrieb
+      api.me().then(() => setReady(true)).catch((e: Error) => setDenied(e.message));
+    });
+  }, [open, router]);
+
+  if (denied) return (
+    <main className="sheet" style={{ padding: 24, maxWidth: 520 }}>
+      <h2>Kein Zugang zu Planpause</h2>
+      <p>{denied} Planpause ist in der Testphase nur auf Einladung nutzbar.</p>
+      <button className="btn" onClick={() => supabase?.auth.signOut().then(() => { window.location.href = "/login"; })}>Abmelden</button>
+    </main>
+  );
+  return ready ? <>{children}</> : <p className="muted">Lade …</p>;
+}
+
+export function Account() {
+  const path = usePathname();
+  const [org, setOrg] = useState("");
+  const [email, setEmail] = useState("");
+
+  useEffect(() => {
+    if (PUBLIC.includes(path)) return;
+    api.me().then((m) => setOrg(m.name)).catch(() => setOrg(""));
+    supabase?.auth.getSession().then(({ data }) => setEmail(data.session?.user.email ?? ""));
+  }, [path]);
+
+  async function logout() {
+    await supabase?.auth.signOut();
+    window.location.href = "/login";
+  }
+
+  if (PUBLIC.includes(path)) return null;
+  return (
+    <span className="org" style={{ display: "flex", gap: 10, alignItems: "center" }}>
+      <span>{org}{email && ` · ${email}`}</span>
+      {supabase && <button className="btn small" onClick={logout}>Abmelden</button>}
+    </span>
+  );
+}

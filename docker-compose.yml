@@ -1,0 +1,28 @@
+services:
+  api:
+    build: { context: ., dockerfile: api/Dockerfile }
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      PLANPAUSE_MODEL: ${PLANPAUSE_MODEL:-claude-opus-5-5}
+      PLANPAUSE_ADMIN_TOKEN: ${PLANPAUSE_ADMIN_TOKEN:-bitte-aendern}
+      PLANPAUSE_CORS: ${PLANPAUSE_CORS:-http://localhost:3000}
+      PLANPAUSE_SITE_URL: ${PLANPAUSE_SITE_URL:-http://localhost:3000}
+      PLANPAUSE_DAILY_ANALYSES: ${PLANPAUSE_DAILY_ANALYSES:-20}
+      PLANPAUSE_EFFORT: ${PLANPAUSE_EFFORT:-medium}
+      PLANPAUSE_TASK_BUDGET: ${PLANPAUSE_TASK_BUDGET:-40000}
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY:-}
+    volumes: ["planpause-data:/data"]
+    ports: ["8000:8000"]
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${PLANPAUSE_API_URL:-http://localhost:8000}
+        NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_URL:-}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
+    ports: ["3000:3000"]
+    depends_on: [api]
+volumes:
+  planpause-data:

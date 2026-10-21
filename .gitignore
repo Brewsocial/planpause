@@ -1,0 +1,13 @@
+node_modules/
+.next/
+__pycache__/
+*.pyc
+.pytest_cache/
+api/data/
+web/.env.local
+*.egg-info/
+.env
+.venv/
+web/.env*.local
+.DS_Store
+out/

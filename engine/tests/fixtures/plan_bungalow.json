@@ -1,0 +1,1719 @@
+{
+ "version": 1,
+ "title": "Bungalow Erdgeschoss mit zwei Garagen",
+ "axes": {
+  "x": [
+   {
+    "id": "xm325",
+    "px": 257.7,
+    "label": ""
+   },
+   {
+    "id": "xm301",
+    "px": 278.6,
+    "label": ""
+   },
+   {
+    "id": "xm275",
+    "px": 287.0,
+    "label": ""
+   },
+   {
+    "id": "xm50",
+    "px": 434.3,
+    "label": ""
+   },
+   {
+    "id": "xm24",
+    "px": 446.1,
+    "label": ""
+   },
+   {
+    "id": "x0",
+    "px": 464.5,
+    "label": ""
+   },
+   {
+    "id": "x24",
+    "px": 479.7,
+    "label": ""
+   },
+   {
+    "id": "x30",
+    "px": 483.4,
+    "label": ""
+   },
+   {
+    "id": "x75",
+    "px": 513.0,
+    "label": ""
+   },
+   {
+    "id": "x125",
+    "px": 541.8,
+    "label": ""
+   },
+   {
+    "id": "x225",
+    "px": 605.2,
+    "label": ""
+   },
+   {
+    "id": "x282.5",
+    "px": 639.3,
+    "label": ""
+   },
+   {
+    "id": "x300",
+    "px": 650.2,
+    "label": ""
+   },
+   {
+    "id": "x330",
+    "px": 673.6,
+    "label": ""
+   },
+   {
+    "id": "x350",
+    "px": 686.3,
+    "label": ""
+   },
+   {
+    "id": "x406",
+    "px": 721.0,
+    "label": ""
+   },
+   {
+    "id": "x415",
+    "px": 722.7,
+    "label": ""
+   },
+   {
+    "id": "x425",
+    "px": 734.5,
+    "label": ""
+   },
+   {
+    "id": "x475",
+    "px": 766.2,
+    "label": ""
+   },
+   {
+    "id": "x503.5",
+    "px": 782.7,
+    "label": ""
+   },
+   {
+    "id": "x520",
+    "px": 794.2,
+    "label": ""
+   },
+   {
+    "id": "x544",
+    "px": 808.0,
+    "label": ""
+   },
+   {
+    "id": "x550",
+    "px": 812.0,
+    "label": ""
+   },
+   {
+    "id": "x595",
+    "px": 838.0,
+    "label": ""
+   },
+   {
+    "id": "x656",
+    "px": 876.1,
+    "label": ""
+   },
+   {
+    "id": "x710",
+    "px": 914.2,
+    "label": ""
+   },
+   {
+    "id": "x720",
+    "px": 920.3,
+    "label": ""
+   },
+   {
+    "id": "x790",
+    "px": 963.2,
+    "label": ""
+   },
+   {
+    "id": "x830",
+    "px": 983.9,
+    "label": ""
+   },
+   {
+    "id": "x891",
+    "px": 1024.5,
+    "label": ""
+   },
+   {
+    "id": "x950",
+    "px": 1060.9,
+    "label": ""
+   },
+   {
+    "id": "x956",
+    "px": 1064.4,
+    "label": ""
+   },
+   {
+    "id": "x980",
+    "px": 1081.9,
+    "label": ""
+   },
+   {
+    "id": "x1000",
+    "px": 1092.1,
+    "label": ""
+   },
+   {
+    "id": "x1050",
+    "px": 1122.5,
+    "label": ""
+   },
+   {
+    "id": "x1075",
+    "px": 1140.1,
+    "label": ""
+   },
+   {
+    "id": "x1090",
+    "px": 1149.0,
+    "label": ""
+   },
+   {
+    "id": "x1100",
+    "px": 1158.1,
+    "label": ""
+   },
+   {
+    "id": "x1117.5",
+    "px": 1166.7,
+    "label": ""
+   },
+   {
+    "id": "x1150",
+    "px": 1189.4,
+    "label": ""
+   },
+   {
+    "id": "x1206",
+    "px": 1224.3,
+    "label": ""
+   },
+   {
+    "id": "x1225",
+    "px": 1238.1,
+    "label": ""
+   },
+   {
+    "id": "x1425",
+    "px": 1357.3,
+    "label": ""
+   },
+   {
+    "id": "x1450",
+    "px": 1379.7,
+    "label": ""
+   },
+   {
+    "id": "x1520",
+    "px": 1422.4,
+    "label": ""
+   },
+   {
+    "id": "x1550",
+    "px": 1435.9,
+    "label": ""
+   },
+   {
+    "id": "x1675",
+    "px": 1517.1,
+    "label": ""
+   },
+   {
+    "id": "x1699",
+    "px": 1535.6,
+    "label": ""
+   },
+   {
+    "id": "x1725",
+    "px": 1551.3,
+    "label": ""
+   },
+   {
+    "id": "x1975",
+    "px": 1708.3,
+    "label": ""
+   },
+   {
+    "id": "x2001",
+    "px": 1723.9,
+    "label": ""
+   },
+   {
+    "id": "x2025",
+    "px": 1739.2,
+    "label": ""
+   }
+  ],
+  "y": [
+   {
+    "id": "ym150",
+    "px": 193.4,
+    "label": ""
+   },
+   {
+    "id": "ym126",
+    "px": 211.6,
+    "label": ""
+   },
+   {
+    "id": "y0",
+    "px": 290.9,
+    "label": ""
+   },
+   {
+    "id": "y24",
+    "px": 301.5,
+    "label": ""
+   },
+   {
+    "id": "y30",
+    "px": 309.0,
+    "label": ""
+   },
+   {
+    "id": "y48",
+    "px": 322.2,
+    "label": ""
+   },
+   {
+    "id": "y125",
+    "px": 369.6,
+    "label": ""
+   },
+   {
+    "id": "y155",
+    "px": 387.1,
+    "label": ""
+   },
+   {
+    "id": "y261",
+    "px": 452.9,
+    "label": ""
+   },
+   {
+    "id": "y285",
+    "px": 468.6,
+    "label": ""
+   },
+   {
+    "id": "y300",
+    "px": 474.8,
+    "label": ""
+   },
+   {
+    "id": "y345",
+    "px": 508.7,
+    "label": ""
+   },
+   {
+    "id": "y476",
+    "px": 592.6,
+    "label": ""
+   },
+   {
+    "id": "y500",
+    "px": 606.7,
+    "label": ""
+   },
+   {
+    "id": "y515",
+    "px": 613.3,
+    "label": ""
+   },
+   {
+    "id": "y524",
+    "px": 620.1,
+    "label": ""
+   },
+   {
+    "id": "y538.5",
+    "px": 626.1,
+    "label": ""
+   },
+   {
+    "id": "y539",
+    "px": 630.0,
+    "label": ""
+   },
+   {
+    "id": "y548",
+    "px": 635.8,
+    "label": ""
+   },
+   {
+    "id": "y577.5",
+    "px": 653.6,
+    "label": ""
+   },
+   {
+    "id": "y595",
+    "px": 665.3,
+    "label": ""
+   },
+   {
+    "id": "y601.5",
+    "px": 670.1,
+    "label": ""
+   },
+   {
+    "id": "y610",
+    "px": 673.5,
+    "label": ""
+   },
+   {
+    "id": "y625",
+    "px": 681.3,
+    "label": ""
+   },
+   {
+    "id": "y630",
+    "px": 686.8,
+    "label": ""
+   },
+   {
+    "id": "y640",
+    "px": 694.5,
+    "label": ""
+   },
+   {
+    "id": "y710",
+    "px": 736.5,
+    "label": ""
+   },
+   {
+    "id": "y713.5",
+    "px": 737.9,
+    "label": ""
+   },
+   {
+    "id": "y720",
+    "px": 743.7,
+    "label": ""
+   },
+   {
+    "id": "y745",
+    "px": 758.5,
+    "label": ""
+   },
+   {
+    "id": "y750",
+    "px": 761.5,
+    "label": ""
+   },
+   {
+    "id": "y762.5",
+    "px": 768.3,
+    "label": ""
+   },
+   {
+    "id": "y774",
+    "px": 777.3,
+    "label": ""
+   },
+   {
+    "id": "y790",
+    "px": 789.8,
+    "label": ""
+   },
+   {
+    "id": "y812.5",
+    "px": 801.3,
+    "label": ""
+   },
+   {
+    "id": "y830",
+    "px": 809.5,
+    "label": ""
+   },
+   {
+    "id": "y902.5",
+    "px": 856.8,
+    "label": ""
+   },
+   {
+    "id": "y920",
+    "px": 866.2,
+    "label": ""
+   },
+   {
+    "id": "y940",
+    "px": 878.3,
+    "label": ""
+   },
+   {
+    "id": "y1016",
+    "px": 930.7,
+    "label": ""
+   },
+   {
+    "id": "y1030",
+    "px": 939.8,
+    "label": ""
+   },
+   {
+    "id": "y1076",
+    "px": 965.8,
+    "label": ""
+   },
+   {
+    "id": "y1070",
+    "px": 966.5,
+    "label": ""
+   },
+   {
+    "id": "y1076.5",
+    "px": 967.7,
+    "label": ""
+   },
+   {
+    "id": "y1100",
+    "px": 981.3,
+    "label": ""
+   }
+  ]
+ },
+ "chains": [
+  {
+   "id": "oben-licht",
+   "axis": "x",
+   "lines": [
+    "x0",
+    "x30",
+    "x520",
+    "x544",
+    "x956",
+    "x980",
+    "x1520",
+    "x1550"
+   ],
+   "values": [
+    30,
+    490,
+    24,
+    412,
+    24,
+    540,
+    30
+   ],
+   "total": 1550,
+   "label": "oben, lichte Maße Haus",
+   "uncertain": []
+  },
+  {
+   "id": "oben-gesamt",
+   "axis": "x",
+   "lines": [
+    "xm325",
+    "xm301",
+    "xm24",
+    "x0",
+    "x30",
+    "x520",
+    "x544",
+    "x956",
+    "x980",
+    "x1520",
+    "x1550",
+    "x1675",
+    "x1699",
+    "x2001",
+    "x2025"
+   ],
+   "values": [
+    24,
+    277,
+    24,
+    30,
+    490,
+    24,
+    412,
+    24,
+    540,
+    30,
+    125,
+    24,
+    302,
+    24
+   ],
+   "total": 2350,
+   "label": "oben, gesamt",
+   "uncertain": []
+  },
+  {
+   "id": "oben-achsen",
+   "axis": "x",
+   "lines": [
+    "x0",
+    "x550",
+    "x950",
+    "x1550"
+   ],
+   "values": [
+    550,
+    400,
+    600
+   ],
+   "total": 1550,
+   "label": "oben, Achsmaße",
+   "uncertain": []
+  },
+  {
+   "id": "oben-fenster-wohnen",
+   "axis": "x",
+   "lines": [
+    "x950",
+    "x1050",
+    "x1150",
+    "x1450",
+    "x1550"
+   ],
+   "values": [
+    100,
+    100,
+    300,
+    100
+   ],
+   "total": null,
+   "label": "oben, Fenster Wohnen",
+   "uncertain": []
+  },
+  {
+   "id": "unten-licht",
+   "axis": "x",
+   "lines": [
+    "x0",
+    "x30",
+    "x282.5",
+    "x300",
+    "x520",
+    "x544",
+    "x956",
+    "x980",
+    "x1100",
+    "x1117.5",
+    "x1520",
+    "x1550"
+   ],
+   "values": [
+    30,
+    252.5,
+    17.5,
+    220,
+    24,
+    412,
+    24,
+    120,
+    17.5,
+    402.5,
+    30
+   ],
+   "total": 1550,
+   "label": "unten, lichte Maße",
+   "uncertain": []
+  },
+  {
+   "id": "unten-gesamt",
+   "axis": "x",
+   "lines": [
+    "xm325",
+    "x0",
+    "x550",
+    "x950",
+    "x1550",
+    "x1675",
+    "x2025"
+   ],
+   "values": [
+    325,
+    550,
+    400,
+    600,
+    125,
+    350
+   ],
+   "total": 2350,
+   "label": "unten, gesamt",
+   "uncertain": []
+  },
+  {
+   "id": "unten-oeffnungen",
+   "axis": "x",
+   "lines": [
+    "xm325",
+    "xm275",
+    "xm50",
+    "x0",
+    "x75",
+    "x225",
+    "x350",
+    "x475",
+    "x550",
+    "x720",
+    "x830",
+    "x950",
+    "x1000",
+    "x1075",
+    "x1225",
+    "x1425",
+    "x1550"
+   ],
+   "values": [
+    50,
+    225,
+    50,
+    75,
+    150,
+    125,
+    125,
+    75,
+    170,
+    110,
+    120,
+    50,
+    75,
+    150,
+    200,
+    125
+   ],
+   "total": null,
+   "label": "unten, Öffnungen",
+   "uncertain": []
+  },
+  {
+   "id": "garage1-tor",
+   "axis": "x",
+   "lines": [
+    "x1675",
+    "x1725",
+    "x1975",
+    "x2025"
+   ],
+   "values": [
+    50,
+    250,
+    50
+   ],
+   "total": 350,
+   "label": "Garage 1, Tor",
+   "uncertain": []
+  },
+  {
+   "id": "links-eltern-kind",
+   "axis": "y",
+   "lines": [
+    "y0",
+    "y24",
+    "y125",
+    "y155",
+    "y577.5",
+    "y601.5",
+    "y1076.5",
+    "y1100"
+   ],
+   "values": [
+    24,
+    101,
+    30,
+    422.5,
+    24,
+    475,
+    24
+   ],
+   "total": 1100,
+   "label": "links, Eltern/Kind",
+   "uncertain": []
+  },
+  {
+   "id": "links-flur-bad",
+   "axis": "y",
+   "lines": [
+    "y125",
+    "y155",
+    "y577.5",
+    "y595",
+    "y745",
+    "y762.5",
+    "y1070",
+    "y1100"
+   ],
+   "values": [
+    30,
+    422.5,
+    17.5,
+    150,
+    17.5,
+    307.5,
+    30
+   ],
+   "total": null,
+   "label": "links, Eltern/Flur/Bad",
+   "uncertain": []
+  },
+  {
+   "id": "rechts-wohnen",
+   "axis": "y",
+   "lines": [
+    "y0",
+    "y30",
+    "y538.5"
+   ],
+   "values": [
+    30,
+    508.5
+   ],
+   "total": null,
+   "label": "rechts, Wohnen",
+   "uncertain": []
+  },
+  {
+   "id": "garage1-tiefe",
+   "axis": "y",
+   "lines": [
+    "ym150",
+    "ym126",
+    "y476",
+    "y500"
+   ],
+   "values": [
+    24,
+    602,
+    24
+   ],
+   "total": null,
+   "label": "Garage 1, Tiefe",
+   "uncertain": []
+  },
+  {
+   "id": "garage2-tiefe",
+   "axis": "y",
+   "lines": [
+    "y524",
+    "y548",
+    "y1100"
+   ],
+   "values": [
+    24,
+    552
+   ],
+   "total": null,
+   "label": "Garage 2, Tiefe",
+   "uncertain": []
+  }
+ ],
+ "measurements": [],
+ "walls": [
+  {
+   "x0": "x0",
+   "y0": "y125",
+   "x1": "x30",
+   "y1": "y1100",
+   "kind": "aussen"
+  },
+  {
+   "x0": "x0",
+   "y0": "y125",
+   "x1": "x125",
+   "y1": "y155",
+   "kind": "aussen"
+  },
+  {
+   "x0": "x425",
+   "y0": "y125",
+   "x1": "x544",
+   "y1": "y155",
+   "kind": "aussen"
+  },
+  {
+   "x0": "x520",
+   "y0": "y155",
+   "x1": "x544",
+   "y1": "y630",
+   "kind": "innen"
+  },
+  {
+   "x0": "x520",
+   "y0": "y720",
+   "x1": "x544",
+   "y1": "y1100",
+   "kind": "aussen"
+  },
+  {
+   "x0": "x30",
+   "y0": "y577.5",
+   "x1": "x415",
+   "y1": "y601.5",
+   "kind": "innen"
+  },
+  {
+   "x0": "x503.5",
+   "y0": "y577.5",
+   "x1": "x520",
+   "y1": "y595",
+   "kind": "innen"
+  },
+  {
+   "x0": "x282.5",
+   "y0": "y601.5",
+   "x1": "x300",
+   "y1": "y625",
+   "kind": "innen"
+  },
+  {
+   "x0": "x282.5",
+   "y0": "y713.5",
+   "x1": "x300",
+   "y1": "y1076.5",
+   "kind": "innen"
+  },
+  {
+   "x0": "x300",
+   "y0": "y745",
+   "x1": "x330",
+   "y1": "y762.5",
+   "kind": "innen"
+  },
+  {
+   "x0": "x406",
+   "y0": "y745",
+   "x1": "x520",
+   "y1": "y762.5",
+   "kind": "innen"
+  },
+  {
+   "x0": "x0",
+   "y0": "y1076.5",
+   "x1": "x75",
+   "y1": "y1100",
+   "kind": "aussen"
+  },
+  {
+   "x0": "x225",
+   "y0": "y1076.5",
+   "x1": "x300",
+   "y1": "y1100",
+   "kind": "aussen"
+  },
+  {
+   "x0": "x300",
+   "y0": "y1070",
+   "x1": "x350",
+   "y1": "y1100",
+   "kind": "aussen"
+  },
+  {
+   "x0": "x475",
+   "y0": "y1070",
+   "x1": "x544",
+   "y1": "y1100",
+   "kind": "aussen"
+  },
+  {
+   "x0": "x544",
+   "y0": "y261",
+   "x1": "x656",
+   "y1": "y285",
+   "kind": "aussen"
+  },
+  {
+   "x0": "x544",
+   "y0": "y750",
+   "x1": "x790",
+   "y1": "y774",
+   "kind": "innen"
+  },
+  {
+   "x0": "x891",
+   "y0": "y750",
+   "x1": "x956",
+   "y1": "y774",
+   "kind": "innen"
+  },
+  {
+   "x0": "x544",
+   "y0": "y1076",
+   "x1": "x720",
+   "y1": "y1100",
+   "kind": "aussen"
+  },
+  {
+   "x0": "x950",
+   "y0": "y1076",
+   "x1": "x980",
+   "y1": "y1100",
+   "kind": "aussen"
+  },
+  {
+   "x0": "x956",
+   "y0": "y0",
+   "x1": "x1050",
+   "y1": "y30",
+   "kind": "aussen"
+  },
+  {
+   "x0": "x1450",
+   "y0": "y0",
+   "x1": "x1550",
+   "y1": "y30",
+   "kind": "aussen"
+  },
+  {
+   "x0": "x956",
+   "y0": "y30",
+   "x1": "x980",
+   "y1": "y285",
+   "kind": "innen"
+  },
+  {
+   "x0": "x956",
+   "y0": "y515",
+   "x1": "x980",
+   "y1": "y610",
+   "kind": "innen"
+  },
+  {
+   "x0": "x980",
+   "y0": "y515",
+   "x1": "x1090",
+   "y1": "y539",
+   "kind": "innen"
+  },
+  {
+   "x0": "x956",
+   "y0": "y710",
+   "x1": "x980",
+   "y1": "y940",
+   "kind": "innen"
+  },
+  {
+   "x0": "x956",
+   "y0": "y1016",
+   "x1": "x980",
+   "y1": "y1076",
+   "kind": "innen"
+  },
+  {
+   "x0": "x1520",
+   "y0": "y30",
+   "x1": "x1550",
+   "y1": "y640",
+   "kind": "aussen"
+  },
+  {
+   "x0": "x1520",
+   "y0": "y790",
+   "x1": "x1550",
+   "y1": "y1070",
+   "kind": "aussen"
+  },
+  {
+   "x0": "x1206",
+   "y0": "y812.5",
+   "x1": "x1520",
+   "y1": "y830",
+   "kind": "innen"
+  },
+  {
+   "x0": "x1100",
+   "y0": "y812.5",
+   "x1": "x1117.5",
+   "y1": "y1070",
+   "kind": "innen"
+  },
+  {
+   "x0": "x980",
+   "y0": "y902.5",
+   "x1": "x1100",
+   "y1": "y920",
+   "kind": "innen"
+  },
+  {
+   "x0": "x980",
+   "y0": "y1070",
+   "x1": "x1000",
+   "y1": "y1100",
+   "kind": "aussen"
+  },
+  {
+   "x0": "x1075",
+   "y0": "y1070",
+   "x1": "x1225",
+   "y1": "y1100",
+   "kind": "aussen"
+  },
+  {
+   "x0": "x1425",
+   "y0": "y1070",
+   "x1": "x1550",
+   "y1": "y1100",
+   "kind": "aussen"
+  },
+  {
+   "x0": "xm325",
+   "y0": "y524",
+   "x1": "xm301",
+   "y1": "y1100",
+   "kind": "brand"
+  },
+  {
+   "x0": "xm325",
+   "y0": "y524",
+   "x1": "x0",
+   "y1": "y548",
+   "kind": "aussen"
+  },
+  {
+   "x0": "xm24",
+   "y0": "y548",
+   "x1": "x0",
+   "y1": "y1100",
+   "kind": "aussen"
+  },
+  {
+   "x0": "xm301",
+   "y0": "y1076",
+   "x1": "xm275",
+   "y1": "y1100",
+   "kind": "aussen"
+  },
+  {
+   "x0": "xm50",
+   "y0": "y1076",
+   "x1": "xm24",
+   "y1": "y1100",
+   "kind": "aussen"
+  },
+  {
+   "x0": "x1675",
+   "y0": "ym150",
+   "x1": "x1699",
+   "y1": "y500",
+   "kind": "aussen"
+  },
+  {
+   "x0": "x2001",
+   "y0": "ym150",
+   "x1": "x2025",
+   "y1": "y500",
+   "kind": "brand"
+  },
+  {
+   "x0": "x1699",
+   "y0": "ym150",
+   "x1": "x2001",
+   "y1": "ym126",
+   "kind": "aussen"
+  },
+  {
+   "x0": "x1699",
+   "y0": "y476",
+   "x1": "x1725",
+   "y1": "y500",
+   "kind": "aussen"
+  },
+  {
+   "x0": "x1975",
+   "y0": "y476",
+   "x1": "x2001",
+   "y1": "y500",
+   "kind": "aussen"
+  }
+ ],
+ "openings": [
+  {
+   "x0": "xm275",
+   "y0": "y1076",
+   "x1": "xm50",
+   "y1": "y1100",
+   "type": "gate",
+   "hinge": null,
+   "swing": null,
+   "width_stated": 225,
+   "sill_stated": null,
+   "height_stated": null
+  },
+  {
+   "x0": "x1725",
+   "y0": "y476",
+   "x1": "x1975",
+   "y1": "y500",
+   "type": "gate",
+   "hinge": null,
+   "swing": null,
+   "width_stated": 250,
+   "sill_stated": null,
+   "height_stated": null
+  },
+  {
+   "x0": "x125",
+   "y0": "y125",
+   "x1": "x425",
+   "y1": "y155",
+   "type": "window",
+   "hinge": null,
+   "swing": null,
+   "width_stated": null,
+   "sill_stated": 62.5,
+   "height_stated": null
+  },
+  {
+   "x0": "x656",
+   "y0": "y261",
+   "x1": "x956",
+   "y1": "y285",
+   "type": "window",
+   "hinge": null,
+   "swing": null,
+   "width_stated": null,
+   "sill_stated": null,
+   "height_stated": 212.5
+  },
+  {
+   "x0": "x1050",
+   "y0": "y0",
+   "x1": "x1150",
+   "y1": "y30",
+   "type": "window",
+   "hinge": null,
+   "swing": null,
+   "width_stated": null,
+   "sill_stated": 62.5,
+   "height_stated": 150
+  },
+  {
+   "x0": "x1150",
+   "y0": "y0",
+   "x1": "x1450",
+   "y1": "y30",
+   "type": "window",
+   "hinge": null,
+   "swing": null,
+   "width_stated": null,
+   "sill_stated": 62.5,
+   "height_stated": 150
+  },
+  {
+   "x0": "x1520",
+   "y0": "y640",
+   "x1": "x1550",
+   "y1": "y790",
+   "type": "window",
+   "hinge": null,
+   "swing": null,
+   "width_stated": null,
+   "sill_stated": 87.5,
+   "height_stated": null
+  },
+  {
+   "x0": "x75",
+   "y0": "y1076.5",
+   "x1": "x225",
+   "y1": "y1100",
+   "type": "window",
+   "hinge": null,
+   "swing": null,
+   "width_stated": null,
+   "sill_stated": 87.5,
+   "height_stated": 125
+  },
+  {
+   "x0": "x350",
+   "y0": "y1070",
+   "x1": "x475",
+   "y1": "y1100",
+   "type": "window",
+   "hinge": null,
+   "swing": null,
+   "width_stated": null,
+   "sill_stated": 87.5,
+   "height_stated": null
+  },
+  {
+   "x0": "x830",
+   "y0": "y1076",
+   "x1": "x950",
+   "y1": "y1100",
+   "type": "window",
+   "hinge": null,
+   "swing": null,
+   "width_stated": null,
+   "sill_stated": null,
+   "height_stated": null
+  },
+  {
+   "x0": "x1000",
+   "y0": "y1070",
+   "x1": "x1075",
+   "y1": "y1100",
+   "type": "window",
+   "hinge": null,
+   "swing": null,
+   "width_stated": null,
+   "sill_stated": 125,
+   "height_stated": null
+  },
+  {
+   "x0": "x1225",
+   "y0": "y1070",
+   "x1": "x1425",
+   "y1": "y1100",
+   "type": "window",
+   "hinge": null,
+   "swing": null,
+   "width_stated": null,
+   "sill_stated": 87.5,
+   "height_stated": 125
+  },
+  {
+   "x0": "x415",
+   "y0": "y577.5",
+   "x1": "x503.5",
+   "y1": "y601.5",
+   "type": "door",
+   "hinge": "end",
+   "swing": "neg",
+   "width_stated": 88.5,
+   "sill_stated": null,
+   "height_stated": 208
+  },
+  {
+   "x0": "x282.5",
+   "y0": "y625",
+   "x1": "x300",
+   "y1": "y713.5",
+   "type": "door",
+   "hinge": "start",
+   "swing": "neg",
+   "width_stated": 88.5,
+   "sill_stated": null,
+   "height_stated": 208
+  },
+  {
+   "x0": "x330",
+   "y0": "y745",
+   "x1": "x406",
+   "y1": "y762.5",
+   "type": "door",
+   "hinge": "start",
+   "swing": "pos",
+   "width_stated": 76,
+   "sill_stated": null,
+   "height_stated": 208
+  },
+  {
+   "x0": "x520",
+   "y0": "y630",
+   "x1": "x544",
+   "y1": "y720",
+   "type": "door",
+   "hinge": "start",
+   "swing": "neg",
+   "width_stated": null,
+   "sill_stated": null,
+   "height_stated": null
+  },
+  {
+   "x0": "x790",
+   "y0": "y750",
+   "x1": "x891",
+   "y1": "y774",
+   "type": "door",
+   "hinge": "end",
+   "swing": "neg",
+   "width_stated": 101,
+   "sill_stated": null,
+   "height_stated": 208
+  },
+  {
+   "x0": "x956",
+   "y0": "y610",
+   "x1": "x980",
+   "y1": "y710",
+   "type": "door",
+   "hinge": "end",
+   "swing": "neg",
+   "width_stated": null,
+   "sill_stated": null,
+   "height_stated": null
+  },
+  {
+   "x0": "x956",
+   "y0": "y940",
+   "x1": "x980",
+   "y1": "y1016",
+   "type": "door",
+   "hinge": "end",
+   "swing": "neg",
+   "width_stated": 76,
+   "sill_stated": null,
+   "height_stated": 208
+  },
+  {
+   "x0": "x720",
+   "y0": "y1076",
+   "x1": "x830",
+   "y1": "y1100",
+   "type": "door",
+   "hinge": "start",
+   "swing": "neg",
+   "width_stated": 110,
+   "sill_stated": null,
+   "height_stated": 208
+  },
+  {
+   "x0": "x1117.5",
+   "y0": "y812.5",
+   "x1": "x1206",
+   "y1": "y830",
+   "type": "door",
+   "hinge": "start",
+   "swing": "pos",
+   "width_stated": 88.5,
+   "sill_stated": null,
+   "height_stated": 208
+  }
+ ],
+ "features": [
+  {
+   "x0": "x544",
+   "y0": "y774",
+   "x1": "x710",
+   "y1": "y1030",
+   "type": "Treppe",
+   "treads": 13
+  },
+  {
+   "x0": "x550",
+   "y0": "y300",
+   "x1": "x595",
+   "y1": "y345",
+   "type": "Schornstein",
+   "note": "Schiedel 2 × Ø 20"
+  },
+  {
+   "x0": "x0",
+   "y0": "y24",
+   "x1": "x24",
+   "y1": "y48",
+   "type": "Stütze"
+  },
+  {
+   "x0": "x520",
+   "y0": "y24",
+   "x1": "x544",
+   "y1": "y48",
+   "type": "Stütze"
+  }
+ ],
+ "rooms": [
+  {
+   "name": "Eltern",
+   "area_stated": 20.7,
+   "poly": [
+    [
+     "x30",
+     "y155"
+    ],
+    [
+     "x520",
+     "y155"
+    ],
+    [
+     "x520",
+     "y577.5"
+    ],
+    [
+     "x30",
+     "y577.5"
+    ]
+   ]
+  },
+  {
+   "name": "Kind",
+   "area_stated": 11.99,
+   "poly": [
+    [
+     "x30",
+     "y601.5"
+    ],
+    [
+     "x282.5",
+     "y601.5"
+    ],
+    [
+     "x282.5",
+     "y1076.5"
+    ],
+    [
+     "x30",
+     "y1076.5"
+    ]
+   ]
+  },
+  {
+   "name": "Flur",
+   "area_stated": 3.3,
+   "poly": [
+    [
+     "x300",
+     "y595"
+    ],
+    [
+     "x520",
+     "y595"
+    ],
+    [
+     "x520",
+     "y745"
+    ],
+    [
+     "x300",
+     "y745"
+    ]
+   ]
+  },
+  {
+   "name": "Bad",
+   "area_stated": 6.77,
+   "poly": [
+    [
+     "x300",
+     "y762.5"
+    ],
+    [
+     "x520",
+     "y762.5"
+    ],
+    [
+     "x520",
+     "y1070"
+    ],
+    [
+     "x300",
+     "y1070"
+    ]
+   ]
+  },
+  {
+   "name": "Diele",
+   "area_stated": 19.16,
+   "poly": [
+    [
+     "x544",
+     "y285"
+    ],
+    [
+     "x956",
+     "y285"
+    ],
+    [
+     "x956",
+     "y750"
+    ],
+    [
+     "x544",
+     "y750"
+    ]
+   ]
+  },
+  {
+   "name": "WFG",
+   "area_stated": 6.75,
+   "poly": []
+  },
+  {
+   "name": "WC",
+   "area_stated": 1.8,
+   "poly": [
+    [
+     "x980",
+     "y920"
+    ],
+    [
+     "x1100",
+     "y920"
+    ],
+    [
+     "x1100",
+     "y1070"
+    ],
+    [
+     "x980",
+     "y1070"
+    ]
+   ]
+  },
+  {
+   "name": "Küche",
+   "area_stated": 9.66,
+   "poly": [
+    [
+     "x1117.5",
+     "y830"
+    ],
+    [
+     "x1520",
+     "y830"
+    ],
+    [
+     "x1520",
+     "y1070"
+    ],
+    [
+     "x1117.5",
+     "y1070"
+    ]
+   ]
+  },
+  {
+   "name": "Wohnen",
+   "area_stated": 27.46,
+   "poly": [
+    [
+     "x980",
+     "y30"
+    ],
+    [
+     "x1520",
+     "y30"
+    ],
+    [
+     "x1520",
+     "y538.5"
+    ],
+    [
+     "x980",
+     "y538.5"
+    ]
+   ]
+  },
+  {
+   "name": "Essen",
+   "area_stated": 14.58,
+   "poly": [
+    [
+     "x980",
+     "y538.5"
+    ],
+    [
+     "x1520",
+     "y538.5"
+    ],
+    [
+     "x1520",
+     "y812.5"
+    ],
+    [
+     "x980",
+     "y812.5"
+    ]
+   ]
+  },
+  {
+   "name": "Überd. Terrasse",
+   "area_stated": 4.22,
+   "poly": []
+  },
+  {
+   "name": "Garage 2",
+   "area_stated": 15.29,
+   "poly": [
+    [
+     "xm301",
+     "y548"
+    ],
+    [
+     "xm24",
+     "y548"
+    ],
+    [
+     "xm24",
+     "y1100"
+    ],
+    [
+     "xm301",
+     "y1100"
+    ]
+   ]
+  },
+  {
+   "name": "Garage 1",
+   "area_stated": 18.18,
+   "poly": [
+    [
+     "x1699",
+     "ym126"
+    ],
+    [
+     "x2001",
+     "ym126"
+    ],
+    [
+     "x2001",
+     "y476"
+    ],
+    [
+     "x1699",
+     "y476"
+    ]
+   ]
+  }
+ ],
+ "zones": [
+  {
+   "type": "Überdachte Terrasse",
+   "poly": [
+    [
+     "x0",
+     "y24"
+    ],
+    [
+     "x956",
+     "y24"
+    ],
+    [
+     "x956",
+     "y261"
+    ],
+    [
+     "x544",
+     "y261"
+    ],
+    [
+     "x544",
+     "y125"
+    ],
+    [
+     "x0",
+     "y125"
+    ]
+   ]
+  }
+ ],
+ "ai_issues": [],
+ "questions": [],
+ "floor": "Erdgeschoss",
+ "image_size": [
+  2048,
+  1536
+ ]
+}

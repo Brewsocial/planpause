@@ -1,0 +1,33 @@
+# Render-Blueprint für die Planpause-API (Docker, Frankfurt).
+# Werte mit "sync: false" fragt Render beim Anlegen ab; sie stehen nie im Repository.
+services:
+  - type: web
+    name: planpause-api
+    runtime: docker
+    dockerfilePath: ./api/Dockerfile
+    dockerContext: .
+    region: frankfurt
+    plan: starter
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: PLANPAUSE_ADMIN_TOKEN
+        generateValue: true
+      - key: PLANPAUSE_CORS          # Adresse der Web-App, z. B. https://planpause.vercel.app
+        sync: false
+      - key: PLANPAUSE_SITE_URL      # dieselbe Adresse; Ziel der Einladungs-Links
+        sync: false
+      - key: PLANPAUSE_MODEL
+        value: claude-opus-5-5
+      - key: PLANPAUSE_EFFORT
+        value: medium
+      - key: PLANPAUSE_TASK_BUDGET
+        value: "40000"
+      - key: PLANPAUSE_DAILY_ANALYSES
+        value: "20"
