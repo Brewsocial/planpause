@@ -1,0 +1,8 @@
+{
+  "name": "planpause",
+  "private": true,
+  "description": "Planpause: Engine (Python), API (FastAPI) und Web-App (Next.js, Ordner web). Diese Datei dient dem Cloudflare-Build aus dem Hauptordner.",
+  "scripts": {
+    "build": "npm --prefix web ci --no-audit --no-fund && npm --prefix web run build"
+  }
+}
