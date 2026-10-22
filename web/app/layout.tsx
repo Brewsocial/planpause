@@ -9,9 +9,8 @@ import "./globals.css";
 const inter = localFont({ src: "./fonts/inter-latin-wght-normal.woff2", weight: "100 900", variable: "--font-inter", display: "swap" });
 
 export const metadata: Metadata = { title: "Planpause", description: "Bestandsgrundrisse digitalisieren und prüfen" };
-export const viewport: Viewport = {
-  themeColor: [{ media: "(prefers-color-scheme: light)", color: "#f5f5f7" }, { media: "(prefers-color-scheme: dark)", color: "#000000" }],
-};
+// Immer hell, auch wenn das Handy im Dunkelmodus ist (wie die KiCO-Website)
+export const viewport: Viewport = { themeColor: "#f5f5f7", colorScheme: "light" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
