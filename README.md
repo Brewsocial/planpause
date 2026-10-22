@@ -135,6 +135,14 @@ Für die Entwicklung gibt es den Betrieb `demo-betrieb` mit dem Schlüssel `demo
 | GET | `/projects/{id}/export/dxf?unit=mm` | DXF mit Layern |
 | GET | `/projects/{id}/export/md` | Prüfbericht mit Nachmessliste |
 
+## Vor dem Livegang (Produktion)
+
+- [ ] **KI-Kostenanzeige ausblenden.** Die Anzeige „KI-Kosten“ in der Projektzusammenfassung und der Projektliste ist nur für die Testphase gedacht und darf Endnutzern nicht angezeigt werden (höchstens intern für Admins).
+- [ ] Gründlichkeit der KI-Auswertung festlegen: **Qualität geht vor Kosten.** Die Kostenbremse (`PLANPAUSE_EFFORT=medium`, `PLANPAUSE_TASK_BUDGET=40000`) ist eine Testeinstellung; anhand echter Pläne prüfen, ob „high“ genauer liest.
+- [ ] Offene Punkte in der Datenschutzerklärung (`[prüfen: …]`) geklärt, AV-Verträge abgeschlossen.
+- [ ] Demo-Zugang und alle im Testbetrieb geteilten Schlüssel erneuert.
+- [ ] API dauerhaft gehostet (statt Tunnel zum Mac).
+
 ## Grenzen dieser Version
 
 - Nur achsparallele Wände werden berechnet. Schräge Wände sind im Modell vorgesehen (`walls_poly`), aber noch nicht im Solver.
