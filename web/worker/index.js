@@ -2,7 +2,8 @@
 // Planpause-API weiter. Deren Adresse steht in der Variablen API_ORIGIN (Cloudflare-Dashboard →
 // Worker → Einstellungen → Variablen), z. B. die Adresse des Cloudflare-Tunnels zum Mac.
 
-const API_PREFIXES = ["/health", "/me", "/projects", "/admin"];
+// Alle Pfade der API; neue Endpunkte hier ergänzen, sonst liefert der Worker stattdessen eine Seite aus
+const API_PREFIXES = ["/health", "/me", "/projects", "/folders", "/admin"];
 
 export default {
   async fetch(request, env) {

@@ -227,3 +227,16 @@ def test_fremde_projekte_bleiben_getrennt(client):
     assert client.get(f"/folders/{fid}", headers=other).status_code == 404
     assert client.get("/folders", headers=other).json() == {"folders": [], "unassigned": []}
     assert client.post(f"/projects/demo/bungalow?folder_id={fid}", headers=other).status_code == 404
+
+
+def test_cloudflare_worker_leitet_alle_api_pfade_weiter(client):
+    # Der Worker (web/worker/index.js) liefert alles außer API-Pfaden als Seite aus. Fehlt ein neuer
+    # Endpunkt in seiner Liste, funktioniert er lokal, aber nicht über Cloudflare.
+    import re
+    from pathlib import Path
+    import app.main as main
+    src = (Path(main.__file__).resolve().parents[2] / "web" / "worker" / "index.js").read_text()
+    prefixes = set(re.findall(r'"(/[a-z]+)"', re.search(r"API_PREFIXES = \[(.*?)\]", src).group(1)))
+    roots = {"/" + r.path.strip("/").split("/")[0] for r in main.app.routes if getattr(r, "path", "").startswith("/")
+             and r.path not in ("/{path:path}",) and not r.path.startswith(("/docs", "/redoc", "/openapi"))}
+    assert roots <= prefixes, f"Im Worker fehlen: {roots - prefixes}"
