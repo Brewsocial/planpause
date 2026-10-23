@@ -110,7 +110,11 @@ def test_projektablauf_mit_supabase(sb):
     fake.tables["org_members"][0]["org_id"] = "malerbetrieb-mueller"
 
     assert c.delete(f"/projects/{pid}", headers=H).status_code == 200
-    assert fake.objects == {} and fake.tables["projects"] == []
+    assert fake.objects == {} and [r["meta"]["kind"] for r in fake.tables["projects"]] == ["folder"]  # Beispiel-Ordner bleibt
+    fid = fake.tables["projects"][0]["id"]
+    assert c.get("/folders", headers=H).json()["folders"][0]["plans"] == []
+    assert c.delete(f"/folders/{fid}", headers=H).status_code == 200
+    assert fake.tables["projects"] == []
 
 
 def test_neustart_setzt_haengende_analyse_zurueck(sb):

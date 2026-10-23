@@ -165,3 +165,65 @@ def test_web_app_wird_mit_ausgeliefert(tmp_path, monkeypatch):
         assert r.status_code == 404 and "nein" not in r.text
     monkeypatch.delenv("PLANPAUSE_STATIC_DIR")
     importlib.reload(main)
+
+
+# ------------------------------------------------------------- Projekte (Ordner) und Geschosse
+
+def test_projekt_mit_grundrissen_und_geschoss(client):
+    f = client.post("/folders", headers=H, json={"name": "Haus Lindenweg 4"}).json()
+    fid = f["id"]
+    a = client.post(f"/projects/demo/bungalow?folder_id={fid}", headers=H).json()
+    b = client.post(f"/projects/demo/darmstaedter14?folder_id={fid}", headers=H).json()
+    client.patch(f"/projects/{a['id']}", headers=H, json={"part": "A – Altbau"})
+    client.patch(f"/projects/{b['id']}", headers=H, json={"part": "B – Anbau"})
+
+    lst = client.get("/folders", headers=H).json()
+    mine = next(x for x in lst["folders"] if x["id"] == fid)
+    assert {p["id"] for p in mine["plans"]} == {a["id"], b["id"]}
+    assert all(p["id"] != fid for p in client.get("/projects", headers=H).json())  # Ordner sind keine Grundrisse
+
+    g = client.get(f"/folders/{fid}/floors/EG/geometry", headers=H).json()
+    assert {p["label"] for p in g["parts"]} == {"A – Altbau", "B – Anbau"} and not g["saved"]
+    pa, pb = (next(p for p in g["parts"] if p["id"] == x["id"]) for x in (a, b))
+    assert pb["bbox"][0] > pa["bbox"][2]  # ohne Anordnung nebeneinander, ohne Überlappung
+
+    r = client.patch(f"/folders/{fid}", headers=H, json={"assembly": {"EG": {
+        a["id"]: {"dx": 0, "dy": 0, "rot": 0}, b["id"]: {"dx": 3000, "dy": 50, "rot": 90}}}})
+    assert r.status_code == 200
+    g2 = client.get(f"/folders/{fid}/floors/EG/geometry", headers=H).json()
+    assert g2["saved"] and next(p for p in g2["parts"] if p["id"] == b["id"])["rot"] == 90
+
+    dxf = client.get(f"/folders/{fid}/floors/EG/export/dxf", headers=H)
+    assert dxf.status_code == 200 and b"SECTION" in dxf.content[:200] and "Haus_Lindenweg_4_EG" in dxf.headers["content-disposition"]
+    assert client.get(f"/folders/{fid}/floors/OG/geometry", headers=H).status_code == 404
+
+
+def test_upload_in_projekt_und_verschieben(client):
+    fid = client.post("/folders", headers=H, json={"name": "Garage"}).json()["id"]
+    img = np.full((900, 1200, 3), 240, np.uint8)
+    cv2.rectangle(img, (200, 150), (1000, 750), (0, 0, 0), 18)
+    up = client.post("/projects", headers=H, files={"file": ("p.jpg", io.BytesIO(cv2.imencode(".jpg", img)[1].tobytes()), "image/jpeg")},
+                     data={"folder_id": fid, "floor": "OG", "part": "C"}).json()
+    assert (up["folder_id"], up["floor"], up["part"]) == (fid, "OG", "C")
+    assert client.post("/projects", headers=H, files={"file": ("p.jpg", io.BytesIO(b"x"), "image/jpeg")},
+                       data={"folder_id": "gibtsnicht"}).status_code == 404
+    moved = client.patch(f"/projects/{up['id']}", headers=H, json={"folder_id": ""}).json()
+    assert moved["folder_id"] is None
+    assert any(p["id"] == up["id"] for p in client.get("/folders", headers=H).json()["unassigned"])
+
+
+def test_projekt_loeschen_entfernt_grundrisse(client):
+    d = client.post("/projects/demo/bungalow", headers=H).json()  # Beispiel legt eigenes Projekt an
+    fid = d["folder_id"]
+    assert client.get(f"/folders/{fid}", headers=H).json()["folder"]["name"].startswith("Beispiel")
+    assert client.delete(f"/folders/{fid}", headers=H).status_code == 200
+    assert client.get(f"/projects/{d['id']}", headers=H).status_code == 404
+
+
+def test_fremde_projekte_bleiben_getrennt(client):
+    key = client.post("/admin/orgs", headers={"X-Admin-Token": "admin"}, json={"id": "anderer-betrieb", "name": "Anders"}).json()["api_key"]
+    fid = client.post("/folders", headers=H, json={"name": "Geheim"}).json()["id"]
+    other = {"Authorization": f"Bearer {key}"}
+    assert client.get(f"/folders/{fid}", headers=other).status_code == 404
+    assert client.get("/folders", headers=other).json() == {"folders": [], "unassigned": []}
+    assert client.post(f"/projects/demo/bungalow?folder_id={fid}", headers=other).status_code == 404

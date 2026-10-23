@@ -242,3 +242,11 @@ footer.foot a { color: var(--muted) }
   .issue .hd { flex-wrap: wrap }
   .issue .tag { flex-basis: 100%; order: 3; padding-left: 34px; margin-top: -4px }
 }
+.row-form { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end }
+.row-form .field { min-width: 220px }
+
+/* Geschoss zusammensetzen */
+.part-row { display: flex; gap: 12px; align-items: flex-start; padding: 12px; background: var(--soft); border-radius: var(--r-sm) }
+.swatch { flex: none; width: 14px; height: 14px; border-radius: 4px; margin-top: 4px }
+.nudge { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; font-size: 13px; color: var(--muted) }
+.nudge input { width: 80px; border: 1.5px solid var(--line); border-radius: 10px; background: var(--sheet); padding: 5px 8px; font-size: 16px; color: var(--ink) }

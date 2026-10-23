@@ -1,7 +1,7 @@
 import { Suspense } from "react";
-import ProjectPage from "./ProjectPage";
+import FolderPage from "./FolderPage";
 
-// Statischer Export: Projekt-ID als Abfrageparameter (/projekt?id=…) statt dynamischem Pfad
+// Projekt (Ordner mit Grundrissen). Statischer Export: ID als Abfrageparameter (/projekt?id=…)
 export default function Page() {
-  return <Suspense fallback={<p className="muted">Lade Projekt …</p>}><ProjectPage /></Suspense>;
+  return <Suspense fallback={<p className="muted">Lade Projekt …</p>}><FolderPage /></Suspense>;
 }

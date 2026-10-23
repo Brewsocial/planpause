@@ -1,5 +1,5 @@
 import { supabase } from "./supabase";
-import type { Meta, Project, Result } from "./types";
+import type { Folder, Meta, Placement, Project, Result } from "./types";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "";  // leer: API unter derselben Adresse wie die Web-App
 const KEY = process.env.NEXT_PUBLIC_API_KEY ?? "demo-schluessel";
@@ -33,12 +33,24 @@ export const api = {
   me: () => call<{ org: string; name: string }>("/me"),
   list: () => call<Meta[]>("/projects"),
   get: (id: string) => call<Project>(`/projects/${id}`),
-  demo: (name: "bungalow" | "darmstaedter14") => call<Meta>(`/projects/demo/${name}`, { method: "POST" }),
-  upload: (file: File, name: string, notes: string) => {
+  demo: (name: "bungalow" | "darmstaedter14", folderId = "") =>
+    call<Meta>(`/projects/demo/${name}${folderId ? `?folder_id=${folderId}` : ""}`, { method: "POST" }),
+  upload: (file: File, f: { name: string; notes?: string; folder_id?: string; floor?: string; part?: string }) => {
     const fd = new FormData();
-    fd.append("file", file); fd.append("name", name); fd.append("notes", notes);
+    fd.append("file", file);
+    for (const [k, v] of Object.entries(f)) if (v) fd.append(k, v);
     return call<Meta>("/projects", { method: "POST", body: fd });
   },
+  patchPlan: (id: string, body: { name?: string; floor?: string; part?: string; folder_id?: string }) =>
+    call<Meta>(`/projects/${id}`, { method: "PATCH", ...json(body) }),
+  folders: () => call<{ folders: Folder[]; unassigned: Meta[] }>("/folders"),
+  folder: (id: string) => call<{ folder: Folder; plans: Meta[]; floors: string[] }>(`/folders/${id}`),
+  createFolder: (name: string) => call<Folder>("/folders", { method: "POST", ...json({ name }) }),
+  patchFolder: (id: string, body: { name?: string; assembly?: Record<string, Record<string, Placement>> }) =>
+    call<Folder>(`/folders/${id}`, { method: "PATCH", ...json(body) }),
+  removeFolder: (id: string) => call<{ ok: boolean }>(`/folders/${id}`, { method: "DELETE" }),
+  floorParts: (id: string, floor: string) =>
+    call<{ parts: ({ id: string; label: string } & Placement)[]; saved: boolean }>(`/folders/${id}/floors/${encodeURIComponent(floor)}/geometry`),
   analyze: (id: string) => call<Meta>(`/projects/${id}/analyze`, { method: "POST" }),
   remove: (id: string) => call<{ ok: boolean }>(`/projects/${id}`, { method: "DELETE" }),
   measure: (id: string, m: { axis: string; a: string; b: string; value: number; note?: string }) =>

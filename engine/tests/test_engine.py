@@ -276,3 +276,55 @@ def test_kostenberechnung():
     from planpause_engine.extract import usage_cost
     assert usage_cost("claude-opus-5-5", {"input_tokens": 13079, "output_tokens": 12991}) == pytest.approx(0.312, abs=0.001)
     assert usage_cost("claude-opus-5-5", {"input_tokens": 13000, "output_tokens": 64000}) == pytest.approx(1.332, abs=0.001)
+
+
+# ------------------------------------------------------------- Geschoss aus mehreren Zeichnungen
+
+def _geom(plan):
+    return analyze(plan)["geometry"]
+
+
+def test_vier_vierteldrehungen_ergeben_das_original(bungalow):
+    from planpause_engine.combine import transform_geometry
+    g = _geom(bungalow)
+    h = g
+    for _ in range(4):
+        h = transform_geometry(h, rot=90)
+    flat = lambda rows: [v for r in rows for v in r]  # noqa: E731
+    assert flat(w["rect"] for w in h["walls"]) == pytest.approx(flat(w["rect"] for w in g["walls"]), abs=0.01)
+    assert flat(c["positions"] for c in h["chains"]) == pytest.approx(flat(c["positions"] for c in g["chains"]), abs=0.01)
+
+
+@pytest.mark.parametrize("rot", [90, 180, 270])
+def test_drehung_erhaelt_flaechen_und_tueren(bungalow, rot):
+    import math
+    from planpause_engine.combine import _pt, transform_geometry
+    from planpause_engine.geometry import polygon_area
+    g = _geom(bungalow)
+    h = transform_geometry(g, dx=500, dy=-200, rot=rot)
+    for a, b in zip(g["rooms"], h["rooms"]):
+        if len(a["poly"]) >= 3:
+            assert polygon_area(b["poly"]) == pytest.approx(polygon_area(a["poly"]), rel=1e-6)
+    for a, b in zip(g["openings"], h["openings"]):
+        if a["swing"]:  # Ende des Türblatts dreht sich mit
+            s, t = a["swing"], b["swing"]
+            end = [s["hinge"][0] + s["r"] * math.cos(math.radians(s["a1"])), s["hinge"][1] + s["r"] * math.sin(math.radians(s["a1"]))]
+            end2 = [t["hinge"][0] + t["r"] * math.cos(math.radians(t["a1"])), t["hinge"][1] + t["r"] * math.sin(math.radians(t["a1"]))]
+            assert end2 == pytest.approx(_pt(end, rot, 500, -200), abs=0.01)
+    # Maßketten liegen nach der Drehung auf den gedrehten Linien
+    xs = {round(l["pos"], 1) for l in h["lines"]["x"]}
+    ys = {round(l["pos"], 1) for l in h["lines"]["y"]}
+    for c in h["chains"]:
+        assert {round(p, 1) for p in c["positions"]} <= (xs if c["axis"] == "x" else ys)
+        assert c["positions"] == sorted(c["positions"])
+
+
+def test_geschoss_aus_zwei_zeichnungen(bungalow, darmstaedter):
+    from planpause_engine.combine import combine
+    a, b = _geom(bungalow), _geom(darmstaedter)
+    m = combine([{"id": "pa", "label": "A", "geometry": a}, {"id": "pb", "label": "B", "geometry": b, "dx": a["bbox"][2] + 2000, "dy": 100, "rot": 90}])
+    assert len(m["walls"]) == len(a["walls"]) + len(b["walls"])
+    assert {w["part"] for w in m["walls"]} == {"pa", "pb"}
+    assert m["bbox"][2] > a["bbox"][2]  # B liegt rechts neben A
+    dxf = to_dxf(m, [], "mm", "EG")
+    assert b"SECTION" in dxf[:200]

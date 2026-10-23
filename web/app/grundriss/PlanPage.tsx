@@ -6,7 +6,7 @@ import PlanView from "@/components/PlanView";
 import Link from "next/link";
 import { api, costText, download, fmt } from "@/lib/api";
 import { statusBadge } from "@/lib/status";
-import type { Issue, MeasureHint, Project, Quality, Result } from "@/lib/types";
+import type { Folder, Issue, MeasureHint, Project, Quality, Result } from "@/lib/types";
 
 const SEV_LABEL = { kritisch: "Kritisch", pruefen: "Prüfen", info: "Hinweis" } as const;
 const BASE_Q = [
@@ -20,7 +20,7 @@ const BASE_Q = [
 ];
 type Tab = "pruefung" | "messwerte" | "ketten" | "raeume" | "fragen" | "export";
 
-export default function ProjectPage() {
+export default function PlanPage() {
   const id = useSearchParams().get("id") ?? "";
   const [p, setP] = useState<Project | null>(null);
   const [err, setErr] = useState("");
@@ -38,6 +38,10 @@ export default function ProjectPage() {
   const listRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(() => api.get(id).then(setP).catch((e) => setErr(e.message)), [id]);
+  const [folders, setFolders] = useState<Folder[]>([]);
+  useEffect(() => { api.folders().then((d) => setFolders(d.folders)).catch(() => setFolders([])); }, []);
+  const folder = folders.find((f) => f.id === p?.meta.folder_id);
+  const home = p?.meta.folder_id ? `/projekt?id=${p.meta.folder_id}` : "/";
   useEffect(() => { load(); }, [load]);
   useEffect(() => {  // Analyse läuft: alle 4 s nachsehen
     if (p?.meta.status !== "analyse") return;
@@ -64,21 +68,22 @@ export default function ProjectPage() {
   const applyResult = (r: Result) => setP((old) => old ? { ...old, result: r } : old);
   const remove = () => {
     if (!p || !confirm(`Projekt „${p.meta.name}“ endgültig löschen? Foto und Ergebnisse werden entfernt.`)) return;
-    api.remove(id).then(() => { window.location.href = "/"; }).catch((e) => setErr(e.message));
+    api.remove(id).then(() => { window.location.href = home; }).catch((e) => setErr(e.message));
   };
   const analyze = () => api.analyze(id).then(load).catch((e) => setErr(e.message));
 
   if (err) return <p className="err">{err}</p>;
-  if (!p) return <p className="muted">Lade Projekt …</p>;
+  if (!p) return <p className="muted">Lade Grundriss …</p>;
 
   const [badge, badgeCls] = statusBadge(p.meta);
   const header = (
     <>
-      <Link href="/" className="back">‹ Projekte</Link>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 14px", alignItems: "center", marginBottom: 16 }}>
-        <h1 style={{ flex: "1 1 auto", minWidth: 0, overflowWrap: "anywhere" }}>{p.meta.name}</h1>
+      <Link href={home} className="back">‹ {folder ? folder.name : "Projekte"}</Link>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 14px", alignItems: "center", marginBottom: 6 }}>
+        <h1 style={{ flex: "1 1 auto", minWidth: 0, overflowWrap: "anywhere" }}>{p.meta.part || p.meta.name}</h1>
         <button className="btn small danger" onClick={remove}>Löschen</button>
       </div>
+      <PlanMeta meta={p.meta} folders={folders} onSaved={(m) => setP({ ...p, meta: { ...p.meta, ...m } })} />
     </>
   );
 
@@ -104,7 +109,7 @@ export default function ProjectPage() {
           <p className="muted" style={{ margin: 0 }}>Das Foto ist aufbereitet{p.meta.steps?.length ? `: ${p.meta.steps.join(", ")}` : ""}.</p>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <button className="btn primary big" onClick={analyze}>{p.meta.warnings?.length ? "Trotzdem analysieren" : "Analyse starten"}</button>
-            {!!p.meta.warnings?.length && <Link className="btn big" href="/">Neues Foto</Link>}
+            {!!p.meta.warnings?.length && <Link className="btn big" href={home}>Neues Foto</Link>}
           </div>
         </div>)}
       {img && <div className="sheet" style={{ padding: 8, marginTop: 16 }}><img src={img.url} alt="Aufbereiteter Plan" style={{ width: "100%", borderRadius: 12, display: "block" }} /></div>}
@@ -127,7 +132,7 @@ export default function ProjectPage() {
       {result.quality && result.quality.level !== "gut" && <QualityBanner q={result.quality} />}
       {result.quality?.level === "nicht_auswertbar" && !showAnyway ? (
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <Link className="btn primary big" href="/">Neues Foto aufnehmen</Link>
+          <Link className="btn primary big" href={home}>Neues Foto aufnehmen</Link>
           <button className="btn big" onClick={() => setShowAnyway(true)}>Ergebnis trotzdem ansehen</button>
         </div>
       ) : (<>
@@ -353,4 +358,48 @@ function Progress({ since }: { since: number }) {
       <p className="hint" style={{ margin: 0 }}>Du kannst die Seite schließen, die Analyse läuft weiter. Das Ergebnis erscheint hier automatisch.</p>
     </section>
   );
+}
+
+
+const FLOORS = ["KG", "EG", "OG", "1. OG", "2. OG", "3. OG", "DG", "Spitzboden"];
+
+/** Projekt, Geschoss und Bezeichnung eines Grundrisses: kompakt anzeigen, bei Bedarf bearbeiten. */
+function PlanMeta({ meta, folders, onSaved }: { meta: Project["meta"]; folders: Folder[]; onSaved: (m: Partial<Project["meta"]>) => void }) {
+  const [edit, setEdit] = useState(false);
+  const [floor, setFloor] = useState(meta.floor || "EG");
+  const [part, setPart] = useState(meta.part || "");
+  const [fid, setFid] = useState(meta.folder_id || "");
+  const [err, setErr] = useState("");
+  const folderName = folders.find((f) => f.id === meta.folder_id)?.name;
+  const save = () => api.patchPlan(meta.id, { floor, part, folder_id: fid })
+    .then((m) => { onSaved(m); setEdit(false); setErr(""); }).catch((e) => setErr(e.message));
+  if (!edit) return (
+    <p className="meta" style={{ margin: "0 0 16px" }}>
+      {folderName ? `${folderName} · ` : "Keinem Projekt zugeordnet · "}Geschoss {meta.floor || "EG"}{meta.part ? ` · ${meta.part}` : ""}
+      {" · "}<a href="#" onClick={(e) => { e.preventDefault(); setEdit(true); }}>bearbeiten</a>
+    </p>);
+  return (
+    <div className="sheet summary" style={{ marginBottom: 16 }}>
+      <div className="row-form">
+        <label className="field" style={{ minWidth: 200, flex: 1 }}>Projekt
+          <select value={fid} onChange={(e) => setFid(e.target.value)}>
+            <option value="">– keinem Projekt –</option>
+            {folders.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+          </select>
+        </label>
+        <label className="field" style={{ minWidth: 110, flex: "0 0 auto" }}>Geschoss
+          <select value={floor} onChange={(e) => setFloor(e.target.value)}>
+            {[...new Set([...FLOORS, floor])].map((f) => <option key={f}>{f}</option>)}
+          </select>
+        </label>
+        <label className="field" style={{ minWidth: 160, flex: 1 }}>Bezeichnung
+          <input type="text" value={part} onChange={(e) => setPart(e.target.value)} placeholder="z. B. B – Anbau" />
+        </label>
+      </div>
+      <div style={{ display: "flex", gap: 8 }}>
+        <button className="btn primary" onClick={save}>Speichern</button>
+        <button className="btn" onClick={() => setEdit(false)}>Abbrechen</button>
+      </div>
+      {err && <p className="err" style={{ margin: 0 }}>{err}</p>}
+    </div>);
 }

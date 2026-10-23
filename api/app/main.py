@@ -125,13 +125,42 @@ def me(o: str = Depends(org)):
     return {"org": o, "name": store.org_name(o)}
 
 
+# Begriffe: In der Oberfläche ist ein "Projekt" ein Ordner (z. B. ein Haus) mit mehreren "Grundrissen".
+# In der API heißen Grundrisse aus historischen Gründen "projects", Projekte/Ordner "folders".
+# Ordner liegen in derselben Ablage wie Grundrisse (meta.kind = "folder"), damit kein neues Datenbankschema nötig ist.
+
+FLOORS = ["KG", "EG", "OG", "1. OG", "2. OG", "3. OG", "DG", "Spitzboden"]
+
+
+def _is_folder(m: dict) -> bool:
+    return m.get("kind") == "folder"
+
+
+def _plans(o: str) -> list[dict]:
+    return [m for m in store.list(o) if not _is_folder(m)]
+
+
+def _folder(o: str, fid: str) -> dict:
+    m = _nf(lambda: store.meta(o, fid))
+    if not _is_folder(m):
+        raise HTTPException(404, "Projekt nicht gefunden")
+    return m
+
+
+def _clean(v: str | None, n: int = 40) -> str:
+    return (v or "").strip()[:n]
+
+
 @app.get("/projects")
 def list_projects(o: str = Depends(org)):
-    return store.list(o)
+    return _plans(o)
 
 
 @app.post("/projects")
-async def create_project(file: UploadFile = File(...), name: str = Form(""), notes: str = Form(""), o: str = Depends(org)):
+async def create_project(file: UploadFile = File(...), name: str = Form(""), notes: str = Form(""),
+                         folder_id: str = Form(""), floor: str = Form(""), part: str = Form(""), o: str = Depends(org)):
+    if folder_id:
+        _folder(o, folder_id)
     data = await file.read()
     if len(data) > 25 * 1024 * 1024:
         raise HTTPException(413, "Datei größer als 25 MB")
@@ -143,17 +172,152 @@ async def create_project(file: UploadFile = File(...), name: str = Form(""), not
     store.write_bytes(o, pid, "original" + Path(file.filename or "x.jpg").suffix.lower()[:5], data)
     store.write_bytes(o, pid, "prepared.jpg", prep.jpeg(quality=88))
     return store.update_meta(o, pid, status="aufbereitet", notes=notes, steps=prep.steps, image_size=list(prep.size),
-                             warnings=image_warnings(_original_size(data)))
+                             warnings=image_warnings(_original_size(data)), folder_id=folder_id or None,
+                             floor=_clean(floor, 20) or "EG", part=_clean(part))
 
 
 @app.post("/projects/demo/{demo}")
-def create_demo(demo: Literal["bungalow", "darmstaedter14"], o: str = Depends(org)):
+def create_demo(demo: Literal["bungalow", "darmstaedter14"], folder_id: str = "", o: str = Depends(org)):
     plan_file, img = DEMOS[demo]
     plan = PlanModel.model_validate(json.loads((FIXTURES / plan_file).read_text()))
+    if folder_id:
+        _folder(o, folder_id)
+    else:  # Beispiele landen in einem eigenen Projekt
+        folder_id = store.create(o, f"Beispiel: {plan.title}")
+        store.update_meta(o, folder_id, kind="folder", status="ordner", demo=True)
     pid = store.create(o, plan.title)
     store.write_bytes(o, pid, "prepared.jpg", (DEMO / img).read_bytes())
     _save_plan(o, pid, plan)
-    return store.update_meta(o, pid, status="analysiert", demo=True)
+    return store.update_meta(o, pid, status="analysiert", demo=True, folder_id=folder_id, floor="EG", part="")
+
+
+class PlanPatch(BaseModel):
+    name: str | None = None
+    floor: str | None = None
+    part: str | None = None
+    folder_id: str | None = None  # "" = aus dem Projekt lösen
+
+
+@app.patch("/projects/{pid}")
+def patch_project(pid: str, body: PlanPatch, o: str = Depends(org)):
+    m = _nf(lambda: store.meta(o, pid))
+    if _is_folder(m):
+        raise HTTPException(404, "Nicht gefunden")
+    kw = {}
+    if body.name is not None and body.name.strip():
+        kw["name"] = _clean(body.name, 120)
+    if body.floor is not None:
+        kw["floor"] = _clean(body.floor, 20) or "EG"
+    if body.part is not None:
+        kw["part"] = _clean(body.part)
+    if body.folder_id is not None:
+        if body.folder_id:
+            _folder(o, body.folder_id)
+        kw["folder_id"] = body.folder_id or None
+    return store.update_meta(o, pid, **kw)
+
+
+# ------------------------------------------------------------------ Projekte (Ordner) und Geschosse
+
+class FolderIn(BaseModel):
+    name: str
+
+
+class Placement(BaseModel):
+    dx: float = 0.0
+    dy: float = 0.0
+    rot: Literal[0, 90, 180, 270] = 0
+
+
+class FolderPatch(BaseModel):
+    name: str | None = None
+    assembly: dict[str, dict[str, Placement]] | None = None  # Geschoss -> Grundriss-ID -> Lage
+
+
+@app.get("/folders")
+def list_folders(o: str = Depends(org)):
+    allm = store.list(o)
+    folders = [m for m in allm if _is_folder(m)]
+    plans = [m for m in allm if not _is_folder(m)]
+    ids = {f["id"] for f in folders}
+    for f in folders:
+        own = [p for p in plans if p.get("folder_id") == f["id"]]
+        f["plans"] = own
+        f["updated"] = max([f.get("updated", 0)] + [p.get("updated", 0) for p in own])
+    folders.sort(key=lambda f: -f["updated"])
+    return {"folders": folders, "unassigned": [p for p in plans if p.get("folder_id") not in ids]}
+
+
+@app.post("/folders")
+def create_folder(body: FolderIn, o: str = Depends(org)):
+    name = _clean(body.name, 120)
+    if not name:
+        raise HTTPException(422, "Bitte einen Namen für das Projekt angeben.")
+    fid = store.create(o, name)
+    return store.update_meta(o, fid, kind="folder", status="ordner")
+
+
+@app.get("/folders/{fid}")
+def get_folder(fid: str, o: str = Depends(org)):
+    f = _folder(o, fid)
+    return {"folder": f, "plans": [p for p in _plans(o) if p.get("folder_id") == fid], "floors": FLOORS}
+
+
+@app.patch("/folders/{fid}")
+def patch_folder(fid: str, body: FolderPatch, o: str = Depends(org)):
+    f = _folder(o, fid)
+    kw = {}
+    if body.name is not None and body.name.strip():
+        kw["name"] = _clean(body.name, 120)
+    if body.assembly is not None:
+        asm = dict(f.get("assembly") or {})
+        for floor, places in body.assembly.items():
+            asm[_clean(floor, 20)] = {pid: p.model_dump() for pid, p in places.items()}
+        kw["assembly"] = asm
+    return store.update_meta(o, fid, **kw)
+
+
+@app.delete("/folders/{fid}")
+def delete_folder(fid: str, o: str = Depends(org)):
+    _folder(o, fid)
+    for p in _plans(o):
+        if p.get("folder_id") == fid:
+            store.delete(o, p["id"])
+    store.delete(o, fid)
+    return {"ok": True}
+
+
+def _floor_geometry(o: str, fid: str, floor: str) -> dict:
+    from planpause_engine.combine import combine, default_layout
+    f = _folder(o, fid)
+    plans = sorted((p for p in _plans(o) if p.get("folder_id") == fid and (p.get("floor") or "EG") == floor
+                    and p.get("status") == "analysiert"), key=lambda p: p.get("created", 0))
+    geoms = [store.read_json(o, p["id"], "result.json")["geometry"] for p in plans]
+    if not geoms:
+        raise HTTPException(404, f"Im Geschoss „{floor}“ gibt es noch keinen analysierten Grundriss.")
+    saved = (f.get("assembly") or {}).get(floor, {})
+    auto = default_layout([(g["bbox"][2] - g["bbox"][0], g["bbox"][3] - g["bbox"][1]) for g in geoms])
+    parts = []
+    for p, g, a in zip(plans, geoms, auto):
+        place = saved.get(p["id"]) or {"dx": a["dx"] - g["bbox"][0], "dy": -g["bbox"][1], "rot": 0}
+        parts.append({"id": p["id"], "label": p.get("part") or p["name"], "geometry": g, **place})
+    merged = combine(parts)
+    merged["floor"] = floor
+    merged["saved"] = bool(saved)
+    return merged
+
+
+@app.get("/folders/{fid}/floors/{floor}/geometry")
+def floor_geometry(fid: str, floor: str, o: str = Depends(org)):
+    return _floor_geometry(o, fid, floor)
+
+
+@app.get("/folders/{fid}/floors/{floor}/export/dxf")
+def floor_dxf(fid: str, floor: str, unit: Literal["mm", "cm", "m"] = "mm", o: str = Depends(org)):
+    f = _folder(o, fid)
+    g = _floor_geometry(o, fid, floor)
+    data = to_dxf(g, [], unit, f"{f['name']} – {floor}")
+    return Response(data, media_type="application/dxf", headers={"Content-Disposition": f'attachment; filename="{_slug(f["name"])}_{_slug(floor)}.dxf"'})
 
 
 def _save_plan(o: str, pid: str, plan: PlanModel) -> dict:
@@ -259,6 +423,12 @@ def get_image(pid: str, o: str = Depends(org)):
     return Response(_nf(lambda: store.read_bytes(o, pid, "prepared.jpg")), media_type="image/jpeg")
 
 
+def _slug(name: str) -> str:
+    import unicodedata
+    ascii_name = unicodedata.normalize("NFKD", name.replace("ß", "ss")).encode("ascii", "ignore").decode()
+    return "".join(c if c.isalnum() else "_" for c in ascii_name).strip("_")[:60] or "grundriss"
+
+
 def _plan(o: str, pid: str) -> PlanModel:
     return PlanModel.model_validate(_nf(lambda: store.read_json(o, pid, "plan.json")))
 
@@ -311,9 +481,7 @@ def put_answers(pid: str, answers: dict[str, str], o: str = Depends(org)):
 def export(pid: str, fmt: Literal["dxf", "md", "json"], unit: Literal["mm", "cm", "m"] = "mm", o: str = Depends(org)):
     meta = _nf(lambda: store.meta(o, pid))
     plan, result = _plan(o, pid), store.read_json(o, pid, "result.json")
-    import unicodedata
-    ascii_name = unicodedata.normalize("NFKD", meta["name"].replace("ß", "ss")).encode("ascii", "ignore").decode()
-    slug = "".join(c if c.isalnum() else "_" for c in ascii_name).strip("_")[:60] or "grundriss"
+    slug = _slug(meta["name"])
     if fmt == "dxf":
         data = to_dxf(result["geometry"], issues_from(result), unit, plan.title or meta["name"])
         return Response(data, media_type="application/dxf", headers={"Content-Disposition": f'attachment; filename="{slug}.dxf"'})
