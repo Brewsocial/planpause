@@ -370,3 +370,21 @@ def test_plan_ganz_ohne_masse_faellt_nicht_auf_einen_punkt(bungalow):
     assert x1 - x0 > 100 and y1 - y0 > 100  # Proportionen der Zeichnung statt 0 × 0
     assert r["quality"]["level"] == "nicht_auswertbar"
     assert any("Kein Maßstab" in g for g in r["quality"]["reasons"])
+
+
+def test_pdf_seite_und_ausschnitt():
+    from planpause_engine.pdf import images_to_pdf, pdf_pages, prepare_pdf, render_page
+    img = np.full((1000, 2000), 255, np.uint8)
+    cv2.rectangle(img, (1000, 500), (1999, 999), 0, -1)  # rechtes unteres Viertel schwarz
+    data = images_to_pdf([img, img])
+    assert [p["page"] for p in pdf_pages(data)] == [1, 2]
+    full = render_page(data, 1)
+    assert max(full.shape) == 6000 and abs(full.shape[1] / full.shape[0] - 2) < 0.01
+    quarter = render_page(data, 2, (0.5, 0.5, 1.0, 1.0))
+    assert quarter.mean() < 20  # nur das schwarze Viertel
+    left = render_page(data, 1, (0.0, 0.0, 0.5, 1.0))
+    assert left.mean() > 235  # linke Hälfte weiß: Ausschnitt nicht gespiegelt oder verschoben
+    prep = prepare_pdf(data, 1, (0.0, 0.0, 0.5, 0.5))
+    assert prep.size[0] == prep.image.shape[1] and "Ausschnitt gewählt" in prep.steps
+    with pytest.raises(ValueError):
+        render_page(data, 3)

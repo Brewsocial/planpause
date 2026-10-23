@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import PdfSetup, { type Crop } from "@/components/PdfSetup";
 import PhotoPicker, { PhotoTips } from "@/components/PhotoPicker";
 import PlanCard from "@/components/PlanCard";
 import { api } from "@/lib/api";
@@ -21,6 +22,7 @@ export default function FolderPage() {
   const [floor, setFloor] = useState("EG");
   const [part, setPart] = useState("");
   const [notes, setNotes] = useState("");
+  const [pdf, setPdf] = useState<{ page: number; crop: Crop | null }>({ page: 1, crop: null });
 
   const load = useCallback(() => api.folder(id).then(setData).catch((e) => setErr(e.message)), [id]);
   useEffect(() => { load(); api.health().then((h) => setClaude(h.claude)).catch(() => setClaude(false)); }, [load]);
@@ -31,9 +33,11 @@ export default function FolderPage() {
   }, [data, load]);
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
 
+  const isPdf = !!file && (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf"));
   function pick(f: File | null) {
     setFile(f);
-    setPreview(f ? URL.createObjectURL(f) : "");
+    const pdfFile = !!f && (f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf"));
+    setPreview(f && !pdfFile ? URL.createObjectURL(f) : "");
   }
 
   async function upload(e: React.FormEvent) {
@@ -42,7 +46,8 @@ export default function FolderPage() {
     setBusy(true); setErr("");
     try {
       const name = part ? `${data.folder.name} – ${floor} ${part}` : `${data.folder.name} – ${floor}`;
-      const p = await api.upload(file, { name, notes, folder_id: id, floor, part });
+      const p = await api.upload(file, { name, notes, folder_id: id, floor, part,
+        ...(isPdf ? { page: String(pdf.page), crop: pdf.crop ? pdf.crop.map((v) => v.toFixed(4)).join(",") : "" } : {}) });
       if (claude && !p.warnings?.length) await api.analyze(p.id);  // bei Warnungen erst den Nutzer entscheiden lassen
       router.push(`/grundriss?id=${p.id}`);
     } catch (x) { setErr((x as Error).message); setBusy(false); }
@@ -81,8 +86,8 @@ export default function FolderPage() {
           <p className="lead">Mehrere Zeichnungen im selben Geschoss (z. B. Altbau und Anbau) lassen sich danach zusammensetzen.</p>
         </div>
         {!file ? <PhotoPicker onPick={pick} /> : (
-          <div className="preview">
-            <img src={preview} alt="Ausgewähltes Foto" />
+          <div className={isPdf ? "preview pdf" : "preview"}>
+            {isPdf ? <PdfSetup file={file} onChange={setPdf} /> : <img src={preview} alt="Ausgewähltes Foto" />}
             <div style={{ display: "grid", gap: 12 }}>
               <div className="row-form">
                 <label className="field" style={{ minWidth: 120, flex: "0 0 auto" }}>Geschoss
@@ -102,7 +107,7 @@ export default function FolderPage() {
               </details>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <button className="btn primary big" disabled={busy}>{busy ? "Wird hochgeladen …" : claude ? "Hochladen und analysieren" : "Hochladen"}</button>
-                <button type="button" className="btn" disabled={busy} onClick={() => pick(null)}>Anderes Foto</button>
+                <button type="button" className="btn" disabled={busy} onClick={() => pick(null)}>{isPdf ? "Andere Datei" : "Anderes Foto"}</button>
               </div>
             </div>
           </div>

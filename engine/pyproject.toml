@@ -9,6 +9,7 @@ dependencies = [
   "pydantic>=2.6",
   "ezdxf>=1.2",
   "anthropic>=1.15",
+  "pypdfium2>=4.30",
 ]
 
 [project.optional-dependencies]

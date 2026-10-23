@@ -42,21 +42,31 @@ class Prepared:
         assert ok
         return buf.tobytes()
 
-    def tiles(self, overlap: float = 0.16, quality: int = 90, max_side: int = 1600, ruler: bool = False) -> list[tuple[str, bytes, tuple[int, int]]]:
-        """2×2 überlappende Ausschnitte: (Name, JPEG, Versatz im entzerrten Bild)."""
+    def tiles(self, overlap: float = 0.16, quality: int = 90, max_side: int = 1600, ruler: bool = False,
+              cell: int = 1500, max_tiles: int = 16) -> list[tuple[str, bytes, tuple[int, int]]]:
+        """Überlappende Ausschnitte: (Name, JPEG, Versatz im entzerrten Bild).
+
+        Fotos (bis ca. 3000 px) ergeben 2×2. Große Bilder, z. B. gerenderte PDF-Seiten, ergeben ein feineres
+        Raster, damit jeder Ausschnitt ohne Verkleinerung bei der KI ankommt und kleine Maßzahlen lesbar bleiben."""
         h, w = self.image.shape[:2]
-        tw, th = int(w * (0.5 + overlap)), int(h * (0.5 + overlap))
+        cols, rows = max(2, -(-w // cell)), max(2, -(-h // cell))
+        while cols * rows > max_tiles:  # zu viele: Zellen vergrößern
+            cols, rows = (cols - 1, rows) if cols >= rows else (cols, rows - 1)
+        tw, th = min(w, int(w / cols * (1 + 2 * overlap))), min(h, int(h / rows * (1 + 2 * overlap)))
+        named = {(0, 0): "oben links", (0, 1): "oben rechts", (1, 0): "unten links", (1, 1): "unten rechts"}
         out = []
-        for name, (x, y) in (("oben links", (0, 0)), ("oben rechts", (w - tw, 0)),
-                             ("unten links", (0, h - th)), ("unten rechts", (w - tw, h - th))):
-            crop = self.image[y:y + th, x:x + tw]
-            k = min(1.0, max_side / max(crop.shape[:2]))
-            if k < 1:
-                crop = cv2.resize(crop, None, fx=k, fy=k, interpolation=cv2.INTER_AREA)
-            if ruler:
-                crop = with_ruler(crop, x, y, k)
-            ok, buf = cv2.imencode(".jpg", crop, [cv2.IMWRITE_JPEG_QUALITY, quality])
-            out.append((name, buf.tobytes(), (x, y)))
+        for r in range(rows):
+            for c in range(cols):
+                x, y = round(c * (w - tw) / (cols - 1)), round(r * (h - th) / (rows - 1))
+                name = named[(r, c)] if (cols, rows) == (2, 2) else f"Zeile {r + 1}, Spalte {c + 1}"
+                crop = self.image[y:y + th, x:x + tw]
+                k = min(1.0, max_side / max(crop.shape[:2]))
+                if k < 1:
+                    crop = cv2.resize(crop, None, fx=k, fy=k, interpolation=cv2.INTER_AREA)
+                if ruler:
+                    crop = with_ruler(crop, x, y, k)
+                ok, buf = cv2.imencode(".jpg", crop, [cv2.IMWRITE_JPEG_QUALITY, quality])
+                out.append((name, buf.tobytes(), (x, y)))
         return out
 
 

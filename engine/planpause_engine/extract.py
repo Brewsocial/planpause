@@ -27,6 +27,7 @@ TOOL_NAME = "planmodell_speichern"
 EFFORT = os.environ.get("PLANPAUSE_EFFORT", "high")
 TASK_BUDGET = int(os.environ.get("PLANPAUSE_TASK_BUDGET", "80000"))
 # Zweiter Durchgang: KI prüft den erkannten Plan auf einem Kontrollbild und ergänzt Fehlendes (review.py)
+OVERVIEW_SIDE = 3000  # Gesamtbild höchstens so groß schicken; Details kommen über die Ausschnitte
 REVIEW = os.environ.get("PLANPAUSE_REVIEW", "0") == "1"  # vorerst aus: bei "high" noch nicht als nötig gemessen
 # US-Dollar pro Million Tokens (Eingabe, Ausgabe); für die Kostenanzeige
 PRICES = {"claude-opus-5-5": (4.0, 20.0), "claude-sonnet-5-5": (2.0, 10.0), "claude-fable-5-1": (10.0, 50.0)}
@@ -90,7 +91,7 @@ def build_messages(prep: Prepared, notes: str = "") -> list[dict]:
     content: list[dict] = [{"type": "text", "text": (f"Bild 1: ganzer Plan, {w} × {h} Pixel. Alle px-Angaben beziehen sich auf dieses Bild. "
                                                      "Am Rand ist ein Lineal mit Pixelkoordinaten (Striche alle 50 px, Zahlen alle 100 px); "
                                                      "der weiße Rand gehört nicht zum Bild.")},
-                           _img(prep.jpeg(max_side=max(w, h), ruler=True))]
+                           _img(prep.jpeg(max_side=min(max(w, h), OVERVIEW_SIDE), ruler=True))]
     for n, (name, data, (ox, oy)) in enumerate(prep.tiles(ruler=True), start=2):
         content += [{"type": "text", "text": (f"Bild {n}: vergrößerter Ausschnitt {name}. Sein Lineal zeigt die Pixelkoordinaten von Bild 1, "
                                               "daran lassen sich px-Werte genau ablesen.")},

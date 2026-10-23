@@ -35,7 +35,12 @@ export const api = {
   get: (id: string) => call<Project>(`/projects/${id}`),
   demo: (name: "bungalow" | "darmstaedter14", folderId = "") =>
     call<Meta>(`/projects/demo/${name}${folderId ? `?folder_id=${folderId}` : ""}`, { method: "POST" }),
-  upload: (file: File, f: { name: string; notes?: string; folder_id?: string; floor?: string; part?: string }) => {
+  pdfPages: (file: File) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    return call<{ pages: { page: number; mm: [number, number]; thumb: string }[] }>("/pdf/pages", { method: "POST", body: fd });
+  },
+  upload: (file: File, f: { name: string; notes?: string; folder_id?: string; floor?: string; part?: string; page?: string; crop?: string }) => {
     const fd = new FormData();
     fd.append("file", file);
     for (const [k, v] of Object.entries(f)) if (v) fd.append(k, v);

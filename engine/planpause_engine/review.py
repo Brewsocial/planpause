@@ -73,8 +73,11 @@ def render_overlay(prep: Prepared, plan: PlanModel) -> bytes:
         b = box(r)
         if b:
             cv2.rectangle(out, b[:2], b[2:], COLORS[kind], 2)
+    k = min(1.0, 3000 / max(out.shape[:2]))  # große Bilder (PDF) verkleinern, Lineal bleibt in Originalkoordinaten
+    if k < 1:
+        out = cv2.resize(out, None, fx=k, fy=k, interpolation=cv2.INTER_AREA)
     # with_ruler arbeitet auf einem Kanal; je Farbkanal anwenden, damit die Farben erhalten bleiben
-    img = cv2.merge([with_ruler(np.ascontiguousarray(out[:, :, c]), 0, 0, 1.0) for c in range(3)])
+    img = cv2.merge([with_ruler(np.ascontiguousarray(out[:, :, c]), 0, 0, k) for c in range(3)])
     ok, buf = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 88])
     assert ok
     return buf.tobytes()
@@ -112,7 +115,7 @@ def review_plan(prep: Prepared, plan: PlanModel, client, model: str, max_tokens:
     tool = {"name": TOOL, "description": "Speichert fehlende Wände, Öffnungen und Bauteile.", "input_schema": Additions.model_json_schema()}
     content = [{"type": "text", "text": "Bild 1: erfasster Plan farbig über dem Foto."}, _img(render_overlay(prep, plan)),
                {"type": "text", "text": "Bild 2: dasselbe Foto ohne Einzeichnungen."},
-               _img(prep.jpeg(max_side=max(prep.size), ruler=True)),
+               _img(prep.jpeg(max_side=min(max(prep.size), 3000), ruler=True)),
                {"type": "text", "text": PROMPT + "\n\n" + _lines_text(plan)}]
     with client.beta.messages.stream(model=model, max_tokens=max_tokens, tools=[tool],
                                      messages=[{"role": "user", "content": content}],

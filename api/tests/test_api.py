@@ -240,3 +240,31 @@ def test_cloudflare_worker_leitet_alle_api_pfade_weiter(client):
     roots = {"/" + r.path.strip("/").split("/")[0] for r in main.app.routes if getattr(r, "path", "").startswith("/")
              and r.path not in ("/{path:path}",) and not r.path.startswith(("/docs", "/redoc", "/openapi"))}
     assert roots <= prefixes, f"Im Worker fehlen: {roots - prefixes}"
+
+
+def _pdf_bytes(pages: int = 2) -> bytes:
+    """Kleines PDF mit den Demo-Bildern als Seiten (über pypdfium2, ohne weitere Abhängigkeiten)."""
+    import app.main as main
+    from planpause_engine.pdf import images_to_pdf
+    return images_to_pdf([cv2.imread(str(main.DEMO / n), cv2.IMREAD_GRAYSCALE) for n in ["bungalow.jpg", "darmstaedter14.jpg"][:pages]])
+
+
+def test_pdf_hochladen_mit_seitenwahl_und_ausschnitt(client):
+    data = _pdf_bytes(2)
+    pages = client.post("/pdf/pages", headers=H, files={"file": ("plan.pdf", io.BytesIO(data), "application/pdf")}).json()["pages"]
+    assert [p["page"] for p in pages] == [1, 2] and pages[0]["thumb"].startswith("data:image/jpeg;base64,")
+    r = client.post("/projects", headers=H, files={"file": ("plan.pdf", io.BytesIO(data), "application/pdf")},
+                    data={"page": "2", "crop": "0.1,0.1,0.9,0.8", "name": "EG aus PDF"}).json()
+    assert r["status"] == "aufbereitet" and r["source"] == "pdf" and r["pdf_page"] == 2 and r["warnings"] == []
+    assert max(r["image_size"]) >= 4000 and "Ausschnitt gewählt" in r["steps"]
+    assert client.post("/projects", headers=H, files={"file": ("plan.pdf", io.BytesIO(data), "application/pdf")},
+                       data={"page": "5"}).status_code == 422
+    assert client.post("/pdf/pages", headers=H, files={"file": ("x.pdf", io.BytesIO(b"kein pdf"), "application/pdf")}).status_code == 422
+
+
+def test_vorschaubild_verkleinert(client):
+    pid = client.post("/projects/demo/bungalow", headers=H).json()["id"]
+    full = client.get(f"/projects/{pid}/image", headers=H).content
+    small = client.get(f"/projects/{pid}/image?max=500", headers=H).content
+    img = cv2.imdecode(np.frombuffer(small, np.uint8), cv2.IMREAD_GRAYSCALE)
+    assert max(img.shape) == 500 and len(small) < len(full) / 3

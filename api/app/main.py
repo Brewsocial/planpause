@@ -156,24 +156,56 @@ def list_projects(o: str = Depends(org)):
     return _plans(o)
 
 
+MAX_UPLOAD = 25 * 1024 * 1024
+
+
+def _parse_crop(crop: str) -> tuple[float, float, float, float] | None:
+    if not crop.strip():
+        return None
+    try:
+        x0, y0, x1, y1 = (float(v) for v in crop.split(","))
+    except ValueError:
+        raise HTTPException(422, "Ausschnitt bitte als x0,y0,x1,y1 (Anteile 0 bis 1) angeben.")
+    return x0, y0, x1, y1
+
+
+@app.post("/pdf/pages")
+async def pdf_page_preview(file: UploadFile = File(...), o: str = Depends(org)):
+    """Seitenvorschau einer PDF, damit in der App die richtige Seite gewählt werden kann."""
+    from planpause_engine.pdf import is_pdf, pdf_pages
+    data = await file.read()
+    if len(data) > MAX_UPLOAD:
+        raise HTTPException(413, "Datei größer als 25 MB")
+    if not is_pdf(data):
+        raise HTTPException(422, "Das ist keine PDF-Datei.")
+    try:
+        return {"pages": pdf_pages(data)}
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+
+
 @app.post("/projects")
 async def create_project(file: UploadFile = File(...), name: str = Form(""), notes: str = Form(""),
-                         folder_id: str = Form(""), floor: str = Form(""), part: str = Form(""), o: str = Depends(org)):
+                         folder_id: str = Form(""), floor: str = Form(""), part: str = Form(""),
+                         page: int = Form(1), crop: str = Form(""), o: str = Depends(org)):
+    from planpause_engine.pdf import is_pdf, prepare_pdf
     if folder_id:
         _folder(o, folder_id)
     data = await file.read()
-    if len(data) > 25 * 1024 * 1024:
+    if len(data) > MAX_UPLOAD:
         raise HTTPException(413, "Datei größer als 25 MB")
+    pdf = is_pdf(data)
     try:
-        prep = prepare(data)
-    except ValueError:
-        raise HTTPException(422, "Bild konnte nicht gelesen werden. Bitte JPEG oder PNG hochladen.")
+        prep = prepare_pdf(data, page, _parse_crop(crop)) if pdf else prepare(data)
+    except ValueError as e:
+        raise HTTPException(422, str(e) if pdf else "Bild konnte nicht gelesen werden. Bitte JPEG, PNG oder PDF hochladen.")
     pid = store.create(o, name or (file.filename or "Grundriss").rsplit(".", 1)[0])
-    store.write_bytes(o, pid, "original" + Path(file.filename or "x.jpg").suffix.lower()[:5], data)
+    store.write_bytes(o, pid, "original.pdf" if pdf else "original" + Path(file.filename or "x.jpg").suffix.lower()[:5], data)
     store.write_bytes(o, pid, "prepared.jpg", prep.jpeg(quality=88))
     return store.update_meta(o, pid, status="aufbereitet", notes=notes, steps=prep.steps, image_size=list(prep.size),
-                             warnings=image_warnings(_original_size(data)), folder_id=folder_id or None,
-                             floor=_clean(floor, 20) or "EG", part=_clean(part))
+                             warnings=[] if pdf else image_warnings(_original_size(data)), folder_id=folder_id or None,
+                             floor=_clean(floor, 20) or "EG", part=_clean(part), source="pdf" if pdf else "foto",
+                             pdf_page=page if pdf else None)
 
 
 @app.post("/projects/demo/{demo}")
@@ -419,8 +451,18 @@ def delete_project(pid: str, o: str = Depends(org)):
 
 
 @app.get("/projects/{pid}/image")
-def get_image(pid: str, o: str = Depends(org)):
-    return Response(_nf(lambda: store.read_bytes(o, pid, "prepared.jpg")), media_type="image/jpeg")
+def get_image(pid: str, max: int = 0, o: str = Depends(org)):
+    """Aufbereitetes Bild; mit ?max=… verkleinert (Vorschaubilder, PDF-Seiten sind mehrere tausend Pixel groß)."""
+    data = _nf(lambda: store.read_bytes(o, pid, "prepared.jpg"))
+    if max > 0:
+        import cv2
+        import numpy as np
+        img = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_GRAYSCALE)
+        k = min(1.0, max / float(img.shape[0] if img.shape[0] > img.shape[1] else img.shape[1]))
+        if k < 1:
+            img = cv2.resize(img, None, fx=k, fy=k, interpolation=cv2.INTER_AREA)
+            data = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 82])[1].tobytes()
+    return Response(data, media_type="image/jpeg", headers={"Cache-Control": "private, max-age=3600"})
 
 
 def _slug(name: str) -> str:
