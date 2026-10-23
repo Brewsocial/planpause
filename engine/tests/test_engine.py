@@ -360,3 +360,13 @@ def test_vollstaendigkeits_check_ergaenzt_fehlendes(bungalow):
     assert log["review_round"]["added"] == {"linien": 0, "waende": 5, "oeffnungen": 3, "bauteile": 0, "verworfen": 1}
     assert len(plan.walls) == len(full.walls) and sum(o.type == "window" for o in plan.openings) == sum(o.type == "window" for o in full.openings)
     assert log["cost_usd"] > log["rounds"][0]["cost_usd"]  # zweiter Durchgang wird mitgezählt
+
+
+def test_plan_ganz_ohne_masse_faellt_nicht_auf_einen_punkt(bungalow):
+    bungalow.chains = []
+    bungalow.openings = [o.model_copy(update={"width_stated": None}) for o in bungalow.openings]
+    r = analyze(bungalow)
+    x0, y0, x1, y1 = r["geometry"]["bbox"]
+    assert x1 - x0 > 100 and y1 - y0 > 100  # Proportionen der Zeichnung statt 0 × 0
+    assert r["quality"]["level"] == "nicht_auswertbar"
+    assert any("Kein Maßstab" in g for g in r["quality"]["reasons"])

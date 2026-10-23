@@ -136,11 +136,18 @@ def _components(ids: list[str], cons: list[Constraint]) -> dict[str, str]:
     return {i: uf.find(i) for i in ids}
 
 
+NOMINAL_SCALE = 0.5  # px pro cm, nur wenn der Plan gar kein lesbares Maß enthält (Größen dann bloß relativ)
+
+
 def estimate_scale(plan: PlanModel, axis: Axis) -> Optional[float]:
     """Pixel pro cm aus den Maßketten der Achse. Ohne Maßkette auf dieser Achse gilt der Maßstab
     der anderen: Das Bild ist entzerrt, ein Zentimeter ist waagerecht und senkrecht gleich lang.
-    Sonst fiele die ganze Achse auf 0 zusammen."""
-    return _axis_scale(plan, axis) or _axis_scale(plan, "y" if axis == "x" else "x")
+    Enthält der Plan überhaupt kein Maß, gilt ein angenommener Maßstab, damit der Plan wenigstens in
+    den Proportionen der Zeichnung erscheint. Sonst fiele alles auf einen Punkt zusammen."""
+    s = _axis_scale(plan, axis) or _axis_scale(plan, "y" if axis == "x" else "x")
+    if s is None and any(l.px is not None for ax in ("x", "y") for l in plan.axes[ax]):
+        return NOMINAL_SCALE
+    return s
 
 
 def _axis_scale(plan: PlanModel, axis: Axis) -> Optional[float]:

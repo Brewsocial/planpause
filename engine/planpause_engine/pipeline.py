@@ -49,6 +49,8 @@ def assess_quality(plan: PlanModel, stats: dict) -> dict:
 
     if not plan.walls:
         blocking.append("Es wurden keine Wände erkannt.")
+    if not values["x"] and not values["y"]:
+        blocking.append("Kein Maßstab erkennbar: Ohne lesbare Maßzahl sind alle Größen nur aus der Zeichnung geschätzt und nicht in Zentimetern belastbar.")
     for ax, name in (("x", "waagerechten"), ("y", "senkrechten")):
         if not values[ax]:
             blocking.append(f"Es sind keine {name} Maße lesbar. In dieser Richtung ist der Plan nur geschätzt.")
