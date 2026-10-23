@@ -250,3 +250,11 @@ footer.foot a { color: var(--muted) }
 .swatch { flex: none; width: 14px; height: 14px; border-radius: 4px; margin-top: 4px }
 .nudge { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; font-size: 13px; color: var(--muted) }
 .nudge input { width: 80px; border: 1.5px solid var(--line); border-radius: 10px; background: var(--sheet); padding: 5px 8px; font-size: 16px; color: var(--ink) }
+
+/* Überlagerung: Plan kräftig über dem Foto, damit auch dünne Innenwände sichtbar sind */
+.ov .p-wall { fill: rgba(0, 113, 227, .28); stroke: #0071e3; stroke-width: 3 }
+.ov .p-wall.brand { fill: rgba(194, 74, 48, .45); stroke: #c24a30 }
+.ov .p-wall.est { fill: rgba(230, 119, 0, .25); stroke: #e67700; stroke-dasharray: 8 5 }
+.ov .p-win { fill: rgba(12, 166, 120, .25); stroke: #0ca678; stroke-width: 2.5 }
+.ov .p-thin, .ov .p-leaf { stroke: #0ca678 }
+.ov .p-room, .ov .p-area { paint-order: stroke; stroke: rgba(255, 255, 255, .85); stroke-width: 4 }

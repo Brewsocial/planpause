@@ -36,7 +36,7 @@ export default function PlanView({ geom, issues, selected, onSelect, showPins, s
   const vb = [bx0 - pad - extra, by0 - pad - extra, bx1 - bx0 + 2 * (pad + extra), by1 - by0 + 2 * (pad + extra)];
 
   return (
-    <svg viewBox={vb.join(" ")} role="img" aria-label="Digitalisierter Grundriss">
+    <svg viewBox={vb.join(" ")} role="img" aria-label="Digitalisierter Grundriss" className={image ? "ov" : undefined}>
       <defs>
         <pattern id="hatch" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
           <rect width="9" height="9" style={{ fill: "var(--wall-tint)" }} />
@@ -45,9 +45,10 @@ export default function PlanView({ geom, issues, selected, onSelect, showPins, s
       </defs>
       {image && (
         <image href={image.url} x={-image.t.x.offset / image.t.x.scale} y={-image.t.y.offset / image.t.y.scale}
-               width={image.w / image.t.x.scale} height={image.h / image.t.y.scale} preserveAspectRatio="none" />
+               width={image.w / image.t.x.scale} height={image.h / image.t.y.scale} preserveAspectRatio="none"
+               style={{ opacity: image.opacity }} />
       )}
-      <g style={{ opacity: image ? image.opacity : 1 }}>
+      <g>
         {geom.zones.map((z, i) => <polygon key={i} className="p-zone" points={z.poly.map((p) => p.join(",")).join(" ")} />)}
         {geom.walls.map((w, i) => {
           const [x0, y0, x1, y1] = w.rect;

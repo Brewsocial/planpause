@@ -138,7 +138,7 @@ Für die Entwicklung gibt es den Betrieb `demo-betrieb` mit dem Schlüssel `demo
 ## Vor dem Livegang (Produktion)
 
 - [ ] **KI-Kostenanzeige ausblenden.** Die Anzeige „KI-Kosten“ in der Projektzusammenfassung und der Projektliste ist nur für die Testphase gedacht und darf Endnutzern nicht angezeigt werden (höchstens intern für Admins).
-- [ ] Gründlichkeit der KI-Auswertung festlegen: **Qualität geht vor Kosten.** Die Kostenbremse (`PLANPAUSE_EFFORT=medium`, `PLANPAUSE_TASK_BUDGET=40000`) ist eine Testeinstellung; anhand echter Pläne prüfen, ob „high“ genauer liest.
+- [ ] Gründlichkeit der KI-Auswertung an mehr echten Plänen bestätigen: **Qualität geht vor Kosten.** Standard ist „high“ mit Denkbudget 80.000 (Bungalow-Foto: Wände 100 % statt 73 % bei „medium“, ca. 1 $ und 6–7 Minuten pro Plan). Messen mit `engine/eval_extract.py` gegen eine Musterlösung.
 - [ ] Offene Punkte in der Datenschutzerklärung (`[prüfen: …]`) geklärt, AV-Verträge abgeschlossen.
 - [ ] Demo-Zugang und alle im Testbetrieb geteilten Schlüssel erneuert.
 - [ ] API dauerhaft gehostet (statt Tunnel zum Mac).

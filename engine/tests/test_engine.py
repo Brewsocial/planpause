@@ -182,12 +182,12 @@ def test_extraktion_mit_korrekturrunde():
     broken["walls"][0]["x0"] = "x_gibt_es_nicht"
     client = FakeClient([broken, good])
     prep = Prepared(np.full((1536, 2048), 255, np.uint8), (2048, 1536))
-    plan, log = extract_plan(prep, client=client)
+    plan, log = extract_plan(prep, client=client, review=False)
     assert len(client.calls) == 2 and log["rounds"][0]["errors"]
     assert not plan.validate_refs()
     first = client.calls[0]
     assert first["tool_choice"]["type"] == "auto"  # erzwungene Werkzeugwahl lehnen aktuelle Modelle ab
-    assert first["fallbacks"] == "default" and first["output_config"]["effort"] == "medium"
+    assert first["fallbacks"] == "default" and first["output_config"]["effort"] == "high"
     assert first["output_config"]["task_budget"]["total"] >= 20000 and "task-budgets-2026-03-13" in first["betas"]
     assert log["cost_usd"] > 0 and len(log["rounds"]) == 2
     assert sum(1 for c in first["messages"][0]["content"] if c["type"] == "image") == 5
@@ -197,7 +197,7 @@ def test_extraktion_fordert_werkzeugaufruf_nach():
     good = json.loads((FIX / "plan_bungalow.json").read_text())
     client = FakeClient([None, good])
     prep = Prepared(np.full((1536, 2048), 255, np.uint8), (2048, 1536))
-    plan, log = extract_plan(prep, client=client)
+    plan, log = extract_plan(prep, client=client, review=False)
     assert len(client.calls) == 2 and log["rounds"][0]["errors"] == ["kein Werkzeugaufruf"]
     assert client.calls[1]["messages"][-1]["content"].startswith("Bitte speichere")
     assert not plan.validate_refs()
@@ -328,3 +328,35 @@ def test_geschoss_aus_zwei_zeichnungen(bungalow, darmstaedter):
     assert m["bbox"][2] > a["bbox"][2]  # B liegt rechts neben A
     dxf = to_dxf(m, [], "mm", "EG")
     assert b"SECTION" in dxf[:200]
+
+
+def test_vollstaendigkeitsmessung(bungalow):
+    import copy
+    from eval_extract import score
+    assert all(q == 1.0 for *_, q in score(bungalow, bungalow).values())
+    teil = copy.deepcopy(bungalow)
+    teil.walls = teil.walls[:30]
+    teil.openings = [o for o in teil.openings if o.type != "window"]
+    teil.chains[0].values[0] += 7  # ein falsch gelesener Wert zählt nicht
+    s = score(teil, bungalow)
+    assert s["Wände"][:2] == (30, 45) and s["Fenster"][2] == 0.0 and s["Maßzahlen"][0] == 84
+
+
+def test_vollstaendigkeits_check_ergaenzt_fehlendes(bungalow):
+    import copy
+    full = copy.deepcopy(bungalow)
+    missing_walls, missing_windows = bungalow.walls[-5:], [o for o in bungalow.openings if o.type == "window"][:3]
+    bungalow.walls = bungalow.walls[:-5]
+    bungalow.openings = [o for o in bungalow.openings if o not in missing_windows]
+    additions = {"walls": [w.model_dump() for w in missing_walls] + [{"x0": "x_gibts_nicht", "x1": "x0", "y0": "y0", "y1": "y24"}],
+                 "openings": [o.model_dump() for o in missing_windows], "notes": "5 Wände, 3 Fenster ergänzt"}
+    client = FakeClient([json.loads((FIX / "plan_bungalow.json").read_text()), additions])
+    prep = Prepared(np.full((1536, 2048), 255, np.uint8), (2048, 1536))
+    client.payloads[0] = bungalow.model_dump(mode="json")
+    plan, log = extract_plan(prep, client=client, review=True)
+    assert len(client.calls) == 2
+    second = client.calls[1]["messages"][0]["content"]
+    assert sum(1 for c in second if c["type"] == "image") == 2  # Kontrollbild + Foto
+    assert log["review_round"]["added"] == {"linien": 0, "waende": 5, "oeffnungen": 3, "bauteile": 0, "verworfen": 1}
+    assert len(plan.walls) == len(full.walls) and sum(o.type == "window" for o in plan.openings) == sum(o.type == "window" for o in full.openings)
+    assert log["cost_usd"] > log["rounds"][0]["cost_usd"]  # zweiter Durchgang wird mitgezählt

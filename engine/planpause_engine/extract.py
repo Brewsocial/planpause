@@ -21,10 +21,13 @@ from .preprocess import Prepared
 
 DEFAULT_MODEL = os.environ.get("PLANPAUSE_MODEL", "claude-opus-5-5")
 TOOL_NAME = "planmodell_speichern"
-# Kostenbremse: Gründlichkeit und ein Denkbudget, an dem sich das Modell orientiert (statt ins max_tokens-Limit
-# zu laufen; abgebrochene Läufe werden trotzdem voll berechnet). max_tokens bleibt als harte Obergrenze.
-EFFORT = os.environ.get("PLANPAUSE_EFFORT", "medium")
-TASK_BUDGET = int(os.environ.get("PLANPAUSE_TASK_BUDGET", "40000"))
+# Gründlichkeit und Denkbudget. "high" erkennt deutlich mehr als "medium" (Bungalow-Foto: Wände 100 % statt 73 %,
+# Maßzahlen 95 % statt 85 %, siehe eval_extract.py) bei etwa doppelten Kosten. Das Budget hält das Modell davon ab,
+# ins max_tokens-Limit zu laufen (abgebrochene Läufe kosten trotzdem). max_tokens bleibt als harte Obergrenze.
+EFFORT = os.environ.get("PLANPAUSE_EFFORT", "high")
+TASK_BUDGET = int(os.environ.get("PLANPAUSE_TASK_BUDGET", "80000"))
+# Zweiter Durchgang: KI prüft den erkannten Plan auf einem Kontrollbild und ergänzt Fehlendes (review.py)
+REVIEW = os.environ.get("PLANPAUSE_REVIEW", "0") == "1"  # vorerst aus: bei "high" noch nicht als nötig gemessen
 # US-Dollar pro Million Tokens (Eingabe, Ausgabe); für die Kostenanzeige
 PRICES = {"claude-opus-5-5": (4.0, 20.0), "claude-sonnet-5-5": (2.0, 10.0), "claude-fable-5-1": (10.0, 50.0)}
 
@@ -113,7 +116,8 @@ class ExtractionError(ValueError):
         self.log = log
 
 
-def extract_plan(prep: Prepared, notes: str = "", client=None, model: str | None = None, max_tokens: int = 128000) -> tuple[PlanModel, dict]:
+def extract_plan(prep: Prepared, notes: str = "", client=None, model: str | None = None, max_tokens: int = 128000,
+                 review: bool | None = None) -> tuple[PlanModel, dict]:
     """Ruft Claude auf und liefert ein geprüftes PlanModel (Pixel bereits eingerastet)."""
     import anthropic  # erst hier, damit Engine-Tests ohne SDK laufen
 
@@ -121,7 +125,12 @@ def extract_plan(prep: Prepared, notes: str = "", client=None, model: str | None
     model = model or DEFAULT_MODEL
     tool = {"name": TOOL_NAME, "description": "Speichert das Rastermodell des Grundrisses.", "input_schema": _schema()}
     messages = build_messages(prep, notes)
-    log: dict = {"model": model, "effort": EFFORT, "task_budget": TASK_BUDGET, "rounds": [], "cost_usd": 0.0}
+    log: dict = {"model": model, "effort": EFFORT, "task_budget": TASK_BUDGET, "review": REVIEW if review is None else review,
+                 "rounds": [], "cost_usd": 0.0}
+    # gemeinsam für beide Durchgänge
+    request = dict(thinking={"type": "adaptive"},
+                   output_config={"effort": EFFORT, "task_budget": {"type": "tokens", "total": TASK_BUDGET}},
+                   betas=["server-side-fallback-2026-07-01", "task-budgets-2026-03-13"], fallbacks="default")
     plan = None
     nudged = False
 
@@ -135,10 +144,7 @@ def extract_plan(prep: Prepared, notes: str = "", client=None, model: str | None
         # fallbacks: lehnt das Modell fälschlich ab, übernimmt serverseitig ein Ersatzmodell.
         with client.beta.messages.stream(
             model=model, max_tokens=max_tokens, tools=[tool], messages=messages,
-            tool_choice={"type": "auto", "disable_parallel_tool_use": True},
-            thinking={"type": "adaptive"},
-            output_config={"effort": EFFORT, "task_budget": {"type": "tokens", "total": TASK_BUDGET}},
-            betas=["server-side-fallback-2026-07-01", "task-budgets-2026-03-13"], fallbacks="default",
+            tool_choice={"type": "auto", "disable_parallel_tool_use": True}, **request,
         ) as stream:
             msg = stream.get_final_message()
         if msg.stop_reason in ("refusal", "max_tokens"):
@@ -168,6 +174,15 @@ def extract_plan(prep: Prepared, notes: str = "", client=None, model: str | None
         plan = drop_broken(plan)
     log["px_raw"] = {ax: {l.id: l.px for l in plan.axes[ax]} for ax in ("x", "y")}  # vor dem Einrasten, zur Fehlersuche
     log["snapped"] = snap_lines(plan, prep.image)
+    if log["review"]:
+        from .review import review_plan
+        try:
+            plan, rlog = review_plan(prep, plan, client, model, max_tokens, request)
+        except Exception as e:  # noqa: BLE001 – der Check ist eine Verbesserung, kein Muss
+            rlog = {"result": f"Fehler im Vollständigkeits-Check: {str(e)[:200]}", "usage": {}}
+        rlog["cost_usd"] = usage_cost(model, rlog.get("usage") or {})
+        log["review_round"] = rlog
+        log["cost_usd"] = round(log["cost_usd"] + rlog["cost_usd"], 4)
     return plan, log
 
 

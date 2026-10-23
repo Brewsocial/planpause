@@ -28,7 +28,7 @@ export default function PlanPage() {
   const [sel, setSel] = useState<string | null>(null);
   const [filter, setFilter] = useState<"alle" | Issue["severity"]>("alle");
   const [view, setView] = useState<"digital" | "overlay">("digital");
-  const [opacity, setOpacity] = useState(0.6);
+  const [opacity, setOpacity] = useState(0.7);  // Deckkraft des Fotos; der Plan bleibt immer voll sichtbar
   const [pins, setPins] = useState(true);
   const [chains, setChains] = useState(true);
   const [img, setImg] = useState<{ url: string; w: number; h: number } | null>(null);
@@ -157,7 +157,7 @@ export default function PlanPage() {
               <button aria-pressed={view === "digital"} onClick={() => setView("digital")}>Digital</button>
               <button aria-pressed={view === "overlay"} onClick={() => setView("overlay")} disabled={!img || !result.image_transform}>Überlagert</button>
             </div>
-            {view === "overlay" && <label className="check">Deckkraft <input type="range" min={0} max={100} value={opacity * 100} onChange={(e) => setOpacity(+e.target.value / 100)} /></label>}
+            {view === "overlay" && <label className="check">Foto <input type="range" min={0} max={100} value={opacity * 100} onChange={(e) => setOpacity(+e.target.value / 100)} /></label>}
             <span className="toggles">
               <button className="toggle" aria-pressed={pins} onClick={() => setPins(!pins)}>Prüfpunkte</button>
               <button className="toggle" aria-pressed={chains} onClick={() => setChains(!chains)}>Maßketten</button>
