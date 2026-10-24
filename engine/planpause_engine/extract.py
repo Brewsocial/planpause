@@ -28,7 +28,7 @@ EFFORT = os.environ.get("PLANPAUSE_EFFORT", "high")
 TASK_BUDGET = int(os.environ.get("PLANPAUSE_TASK_BUDGET", "80000"))
 # Zweiter Durchgang: KI prüft den erkannten Plan auf einem Kontrollbild und ergänzt Fehlendes (review.py)
 OVERVIEW_SIDE = 3000  # Gesamtbild höchstens so groß schicken; Details kommen über die Ausschnitte
-REVIEW = os.environ.get("PLANPAUSE_REVIEW", "0") == "1"  # vorerst aus: bei "high" noch nicht als nötig gemessen
+REVIEW = os.environ.get("PLANPAUSE_REVIEW", "1") == "1"  # Bensheim-EG: ergänzte eine fehlende Tür für 0,12 $
 # US-Dollar pro Million Tokens (Eingabe, Ausgabe); für die Kostenanzeige
 PRICES = {"claude-opus-5-5": (4.0, 20.0), "claude-sonnet-5-5": (2.0, 10.0), "claude-fable-5-1": (10.0, 50.0)}
 
@@ -41,7 +41,12 @@ def usage_cost(model: str, usage: dict) -> float:
     return round((tokens_in * pin + (usage.get("output_tokens") or 0) * pout) / 1e6, 4)
 
 INSTRUCTIONS = """Du bist Architekt für Bestandsaufnahmen und überträgst einen Bestandsgrundriss (oft handgezeichnet) in ein Rastermodell.
-Du rechnest NICHTS aus und rätst KEINE Koordinaten. Du beschreibst nur, was im Plan steht. Die Lage jeder Wand berechnet anschließend ein Programm aus den Maßzahlen.
+Du rechnest NICHTS aus und korrigierst keine Maßzahlen. Du beschreibst, was im Plan steht. Die Lage jeder Wand berechnet anschließend ein Programm aus den Maßzahlen.
+
+VOLLSTÄNDIGKEIT GEHT VOR: Erfasse ALLE Wände, Türen, Fenster und Räume, die im Bild zu sehen sind, auch kurze Innenwände
+(Bad, WC, Dusche, Flur, Abstellraum, Küche) und auch dort, wo kein Maß steht oder die Maße unleserlich sind. Für solche
+Bauteile genügt die Pixellage (px) ihrer Linien; das Programm kennzeichnet sie automatisch als „nur nach Zeichnung“.
+Ein fehlendes Bauteil ist schlimmer als eines mit ungenauer Lage.
 
 ## Das Rastermodell
 - Jede senkrechte Kante im Plan (Wandseite, Laibung, Gebäudeecke) liegt auf einer x-Linie, jede waagerechte auf einer y-Linie.
@@ -59,11 +64,14 @@ Du rechnest NICHTS aus und rätst KEINE Koordinaten. Du beschreibst nur, was im 
 
 ## Bauteile
 - walls: Rechtecke aus vier Linien (x0 < x1, y0 < y1). kind: aussen, innen oder brand (wenn "Brandwand" dransteht). Öffnungen sind Lücken zwischen Wandrechtecken.
+  Jede im Bild gezeichnete Wand gehört hinein, jede Innenwand einzeln. Grenzen zwei Baukörper aneinander (z. B. Garage, Anbau),
+  haben sie meist je eine eigene Wand; eine kleine Zahl wie „2“ zwischen zwei Maßketten ist dann die Fuge zwischen den beiden Wänden.
 - openings: Fenster (window), Türen (door), Tore (gate), Durchgänge (passage) als Rechteck über die Wanddicke.
   Türen: hinge = Bandseite ("start" = kleinere Koordinate der Öffnung, "end" = größere), swing = Richtung, in die die Tür aufschlägt ("pos" = +x bzw. +y, "neg" = -x bzw. -y; y wächst nach unten).
   width_stated/height_stated/sill_stated aus Angaben wie "88⁵/2.08" oder "BR 87⁵" in cm.
 - features: Treppe (mit treads = Anzahl Stufen), Schornstein, Schacht, Stütze, Einbau.
-- rooms: Name, area_stated in m² (das Zeichen # oder qm hinter Zahlen steht für m²), poly als Ecken der Innenkontur [x-Linie, y-Linie] im Uhrzeigersinn. Ohne erkennbare Kontur poly leer lassen.
+- rooms: Name, area_stated in m² (das Zeichen # oder qm hinter Zahlen steht für m²), poly als Ecken der Innenkontur [x-Linie, y-Linie] im Uhrzeigersinn.
+  Gib für jeden Raum den Umriss an, der sich aus den umgebenden Wänden ergibt (auch wenn diese Wände nur nach Zeichnung liegen). poly nur leer lassen, wenn der Raum im Bild wirklich keine erkennbare Begrenzung hat.
 - zones: Terrassen, Balkone und ähnliche Flächen außerhalb der Wände.
 
 ## Fachliche Prüfung
