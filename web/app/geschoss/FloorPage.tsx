@@ -8,7 +8,11 @@ import { outerCorners, PART_COLORS, place, placedBox, rotateInPlace } from "@/li
 import type { Geometry, Placement, Result } from "@/lib/types";
 
 interface Part { id: string; label: string; geom: Geometry; place: Placement; color: string }
-type Pick = { part: string; x: number; y: number };
+type Drag =
+  | { kind: "part"; id: string; x: number; y: number; start: Placement; others: [number, number][]; vb: number[] }
+  | { kind: "pan"; cx: number; cy: number; left: number; top: number };
+
+const SNAP_PX = 22; // Fangradius in Bildschirmpixeln: Außenecken rasten aneinander ein
 
 export default function FloorPage() {
   const q = useSearchParams();
@@ -17,8 +21,10 @@ export default function FloorPage() {
   const [name, setName] = useState("");
   const [parts, setParts] = useState<Part[] | null>(null);
   const [err, setErr] = useState("");
-  const [connect, setConnect] = useState(false);
-  const [anchor, setAnchor] = useState<Pick | null>(null);
+  const [active, setActive] = useState<string | null>(null);
+  const [snap, setSnap] = useState<[number, number] | null>(null);
+  const drag = useRef<Drag | null>(null);
+  const canvasRef = useRef<HTMLDivElement>(null);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [zoom, setZoom] = useState(1);
@@ -40,6 +46,7 @@ export default function FloorPage() {
     })();
   }, [fid, floor]);
 
+  const [frozenVb, setFrozenVb] = useState<number[] | null>(null);  // während des Ziehens fester Ausschnitt
   const view = useMemo(() => {
     if (!parts?.length) return null;
     const boxes = parts.map((p) => placedBox(p.geom, p.place));
@@ -53,13 +60,6 @@ export default function FloorPage() {
     setParts((ps) => ps && ps.map((p) => (p.id === id ? { ...p, place: fn(p) } : p)));
     setDirty(true);
   };
-
-  function pickCorner(c: Pick) {
-    if (!anchor) { setAnchor(c); return; }
-    if (c.part === anchor.part) { setAnchor(c); return; }  // andere Ecke im selben Teil: Anker neu wählen
-    update(c.part, (p) => ({ ...p.place, dx: p.place.dx + anchor.x - c.x, dy: p.place.dy + anchor.y - c.y }));
-    setAnchor(null); setConnect(false);
-  }
 
   async function save() {
     if (!parts) return;
@@ -76,26 +76,60 @@ export default function FloorPage() {
       .catch((e) => setErr(e.message));
   }
 
-  /** Antippen irgendwo in der Nähe: nächstgelegene Ecke nehmen (Finger treffen keine kleinen Punkte) */
-  function tap(e: React.MouseEvent<SVGSVGElement>) {
-    if (!connect || !parts || !view || !svgRef.current) return;
-    const ctm = svgRef.current.getScreenCTM();
-    if (!ctm) return;
+  const toSvg = (e: React.PointerEvent) => {
+    const ctm = svgRef.current!.getScreenCTM()!;
     const pt = new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm.inverse());
-    let best: Pick | null = null, bd = Infinity;
-    for (const p of parts) for (const [x, y] of outerCorners(p.geom, p.place)) {
-      const d = Math.hypot(x - pt.x, y - pt.y);
-      // zweiter Schritt: bevorzugt Ecken einer anderen Zeichnung als der Anker
-      const penalty = anchor && p.id === anchor.part ? view.span * 0.01 : 0;
-      if (d + penalty < bd) { bd = d + penalty; best = { part: p.id, x, y }; }
+    return { x: pt.x, y: pt.y, scale: ctm.a };
+  };
+
+  /** Zeichnung greifen: verschieben; leere Fläche greifen: Ansicht verschieben (wenn vergrößert) */
+  function down(e: React.PointerEvent, id: string | null) {
+    if (!parts || !view) return;
+    e.stopPropagation();
+    svgRef.current!.setPointerCapture(e.pointerId);
+    if (id) {
+      const p = parts.find((x) => x.id === id)!;
+      const { x, y } = toSvg(e);
+      const others = parts.filter((o) => o.id !== id).flatMap((o) => outerCorners(o.geom, o.place));
+      drag.current = { kind: "part", id, x, y, start: p.place, others, vb: view.vb };
+      setFrozenVb(view.vb); setActive(id);
+    } else if (canvasRef.current) {
+      drag.current = { kind: "pan", cx: e.clientX, cy: e.clientY, left: canvasRef.current.scrollLeft, top: canvasRef.current.scrollTop };
     }
-    if (best && bd < view.span * 0.06) pickCorner(best);
+  }
+
+  function move(e: React.PointerEvent) {
+    const d = drag.current;
+    if (!d || !parts) return;
+    if (d.kind === "pan") {
+      canvasRef.current!.scrollLeft = d.left - (e.clientX - d.cx);
+      canvasRef.current!.scrollTop = d.top - (e.clientY - d.cy);
+      return;
+    }
+    const { x, y, scale } = toSvg(e);
+    let next: Placement = { ...d.start, dx: d.start.dx + x - d.x, dy: d.start.dy + y - d.y };
+    // Magnetisch einrasten: nächstes Paar Außenecken innerhalb des Fangradius
+    const p = parts.find((q) => q.id === d.id)!;
+    let best: [number, number, number, number] | null = null, bd = SNAP_PX / scale;
+    for (const [mx, my] of outerCorners(p.geom, next)) for (const [ox, oy] of d.others) {
+      const dist = Math.hypot(ox - mx, oy - my);
+      if (dist < bd) { bd = dist; best = [mx, my, ox, oy]; }
+    }
+    if (best) next = { ...next, dx: next.dx + best[2] - best[0], dy: next.dy + best[3] - best[1] };
+    setSnap(best ? [best[2], best[3]] : null);
+    setParts((ps) => ps && ps.map((q) => (q.id === d.id ? { ...q, place: next } : q)));
+    setDirty(true);
+  }
+
+  function up() {
+    drag.current = null;
+    setFrozenVb(null);
   }
 
   if (err && !parts) return <p className="err">{err}</p>;
   if (!parts || !view) return <p className="muted">Lade Geschoss …</p>;
   const s = view.span;
-  const label = connect ? (anchor ? "2. Jetzt dieselbe Ecke in der Zeichnung antippen, die angesetzt werden soll." : "1. Tippe eine Außenecke der Zeichnung an, die stehen bleibt. Zum genauen Tippen vorher vergrößern (+).") : "";
+  const vb = frozenVb ?? view.vb;
 
   return (
     <main>
@@ -104,36 +138,32 @@ export default function FloorPage() {
         <h1 style={{ flex: "1 1 auto" }}>{floor} zusammensetzen</h1>
       </div>
       <p className="lead" style={{ marginBottom: 16 }}>
-        Jede Zeichnung wurde einzeln vermessen. Verbinde sie über eine gemeinsame Ecke, z. B. die Ecke, an der Altbau und Anbau aneinanderstoßen.
+        Jede Zeichnung wurde einzeln vermessen. Zieh eine Zeichnung mit dem Finger oder der Maus an ihre Stelle: Außenecken rasten aneinander ein, wenn sie sich nahekommen.
       </p>
 
       <div className="grid2">
         <section className="sheet sticky" aria-label="Geschoss">
           <div className="bar">
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button className={`btn small${connect ? " primary" : ""}`} onClick={() => { setConnect(!connect); setAnchor(null); }}>
-                {connect ? "Verbinden abbrechen" : "Ecken verbinden"}</button>
-            </div>
-            <span className="hint">{label || "Maße in cm"}</span>
+            <span className="hint">{snap ? "Eingerastet ✓" : active ? `${parts.find((p) => p.id === active)?.label}: ziehen zum Verschieben` : "Zeichnung antippen und ziehen"}</span>
+            <span className="hint">Maße in cm</span>
           </div>
           <div className="zoom-wrap">
-            <div className="canvas">
+            <div className="canvas" ref={canvasRef}>
               <div style={{ width: `${zoom * 100}%` }}>
-                <svg ref={svgRef} viewBox={view.vb.join(" ")} role="img" aria-label={`Geschoss ${floor}`} onClick={tap}
-                  style={{ cursor: connect ? "crosshair" : "default" }}>
-                  {parts.map((p) => <PartShape key={p.id} p={p} />)}
+                <svg ref={svgRef} viewBox={vb.join(" ")} role="img" aria-label={`Geschoss ${floor}`}
+                  style={{ touchAction: "none", cursor: drag.current?.kind === "pan" ? "grabbing" : "grab" }}
+                  onPointerDown={(e) => down(e, null)} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
+                  {parts.map((p) => (
+                    <g key={p.id} onPointerDown={(e) => down(e, p.id)} style={{ cursor: "move" }}>
+                      <PartShape p={p} active={active === p.id} />
+                    </g>))}
                   {parts.map((p, i) => (
                     <g key={p.id + "l"}>
                       {p.geom.rooms.map((r, k) => r.label ? (() => { const [x, y] = place(r.label![0], r.label![1], p.place); return (
                         <text key={k} className="p-room" x={x} y={y} style={{ fontSize: s * 0.016 }}>{r.name}</text>); })() : null)}
                       <text x={view.boxes[i][0]} y={view.boxes[i][1] - s * 0.025} style={{ fontSize: s * 0.024, fontWeight: 700, fill: p.color }}>{p.label}</text>
                     </g>))}
-                  {connect && parts.map((p) => outerCorners(p.geom, p.place).map(([x, y], k) => {
-                    const on = anchor && anchor.part === p.id && Math.abs(anchor.x - x) < 0.5 && Math.abs(anchor.y - y) < 0.5;
-                    return (
-                      <circle key={p.id + k} cx={x} cy={y} r={on ? s * 0.012 : s * 0.0075} aria-label="Ecke"
-                        style={{ fill: on ? p.color : "var(--sheet)", stroke: p.color, strokeWidth: s * 0.002, pointerEvents: "none" }} />);
-                  }))}
+                  {snap && <circle cx={snap[0]} cy={snap[1]} r={s * 0.012} style={{ fill: "none", stroke: "var(--ok)", strokeWidth: s * 0.004, pointerEvents: "none" }} />}
                 </svg>
               </div>
             </div>
@@ -178,11 +208,11 @@ export default function FloorPage() {
 }
 
 /** Eine Zeichnung, gedreht und verschoben, in ihrer Farbe */
-function PartShape({ p }: { p: Part }) {
+function PartShape({ p, active }: { p: Part; active: boolean }) {
   const g = p.geom;
   const t = `translate(${p.place.dx} ${p.place.dy}) rotate(${p.place.rot})`;
   return (
-    <g transform={t}>
+    <g transform={t} style={active ? { filter: `drop-shadow(0 0 6px ${p.color})` } : undefined}>
       {g.rooms.map((r, i) => r.poly.length >= 3 ? <polygon key={i} points={r.poly.map((q) => q.join(",")).join(" ")} style={{ fill: p.color, opacity: 0.06 }} /> : null)}
       {g.walls.map((w, i) => {
         const [x0, y0, x1, y1] = w.rect;
