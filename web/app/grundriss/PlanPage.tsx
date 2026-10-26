@@ -41,7 +41,7 @@ export default function PlanPage() {
   const [folders, setFolders] = useState<Folder[]>([]);
   useEffect(() => { api.folders().then((d) => setFolders(d.folders)).catch(() => setFolders([])); }, []);
   const folder = folders.find((f) => f.id === p?.meta.folder_id);
-  const home = p?.meta.folder_id ? `/projekt?id=${p.meta.folder_id}` : "/";
+  const home = p?.meta.folder_id ? `/projekt?id=${p.meta.folder_id}` : "/projekte";
   useEffect(() => { load(); }, [load]);
   useEffect(() => {  // Analyse läuft: alle 4 s nachsehen
     if (p?.meta.status !== "analyse") return;

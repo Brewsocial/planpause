@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
 
-const PUBLIC = ["/login", "/impressum", "/datenschutz"];
+const PUBLIC = ["/", "/login", "/impressum", "/datenschutz"];
 
 /** Leitet ohne Anmeldung zur Login-Seite und zeigt den Betrieb im Kopf an. */
 export function AuthGate({ children }: { children: React.ReactNode }) {
@@ -50,11 +50,19 @@ export function Account() {
     window.location.href = "/login";
   }
 
-  if (PUBLIC.includes(path)) return null;
+  if (path === "/login") return null;
+  if (PUBLIC.includes(path)) return <SignIn />;
   return (
     <span className="org">
       <span className="who">{org}{email && <span className="mail"> · {email}</span>}</span>
       {supabase && <button className="btn small" onClick={logout}>Abmelden</button>}
     </span>
   );
+}
+
+/** Auf öffentlichen Seiten: Einstieg in die App, je nach Anmeldung */
+function SignIn() {
+  const [inApp, setInApp] = useState(!supabase);
+  useEffect(() => { supabase?.auth.getSession().then(({ data }) => setInApp(!!data.session)); }, []);
+  return <a className="btn small primary" href={inApp ? "/projekte" : "/login"}>{inApp ? "Meine Projekte" : "Anmelden"}</a>;
 }

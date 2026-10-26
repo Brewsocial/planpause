@@ -14,14 +14,14 @@ export default function Login() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!supabase) { window.location.href = "/"; return; }
+    if (!supabase) { window.location.href = "/projekte"; return; }
     // Einladungs- und Zurücksetzen-Links führen hierher zurück: Passwort festlegen
     const setpw = new URLSearchParams(window.location.search).has("setpw");
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "PASSWORD_RECOVERY" || (setpw && session)) setMode("setpw");
     });
     supabase.auth.getSession().then(({ data: s }) => {
-      if (s.session) { if (setpw) setMode("setpw"); else window.location.href = "/"; }
+      if (s.session) { if (setpw) setMode("setpw"); else window.location.href = "/projekte"; }
     });
     return () => data.subscription.unsubscribe();
   }, []);
@@ -35,7 +35,7 @@ export default function Login() {
     const a = supabase.auth;
     const r =
       mode === "login" ? await a.signInWithPassword({ email, password: pw }) :
-      mode === "link" ? await a.signInWithOtp({ email, options: { shouldCreateUser: false, emailRedirectTo: window.location.origin } }) :
+      mode === "link" ? await a.signInWithOtp({ email, options: { shouldCreateUser: false, emailRedirectTo: `${window.location.origin}/projekte` } }) :
       mode === "reset" ? await a.resetPasswordForEmail(email, { redirectTo: back }) :
       await a.updateUser({ password: pw });
     setBusy(false);
@@ -45,7 +45,7 @@ export default function Login() {
              r.error.message);
       return;
     }
-    if (mode === "login" || mode === "setpw") window.location.href = "/";
+    if (mode === "login" || mode === "setpw") window.location.href = "/projekte";
     else setMsg("Wir haben dir eine E-Mail geschickt. Bitte den Link darin öffnen.");
   }
 

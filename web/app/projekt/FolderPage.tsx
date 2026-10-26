@@ -63,7 +63,7 @@ export default function FolderPage() {
     if (!data) return;
     const n = data.plans.length;
     if (!confirm(`Projekt „${data.folder.name}“ ${n ? `mit ${n} ${n === 1 ? "Grundriss" : "Grundrissen"} ` : ""}endgültig löschen?`)) return;
-    await api.removeFolder(id).then(() => { window.location.href = "/"; }).catch((e) => setErr(e.message));
+    await api.removeFolder(id).then(() => { window.location.href = "/projekte"; }).catch((e) => setErr(e.message));
   }
 
   if (err && !data) return <p className="err">{err}</p>;
@@ -73,7 +73,7 @@ export default function FolderPage() {
 
   return (
     <main>
-      <Link href="/" className="back">‹ Projekte</Link>
+      <Link href="/projekte" className="back">‹ Projekte</Link>
       <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 14px", alignItems: "center", marginBottom: 16 }}>
         <h1 style={{ flex: "1 1 auto", minWidth: 0, overflowWrap: "anywhere" }}>{folder.name}</h1>
         <button className="btn small" onClick={rename}>Umbenennen</button>
