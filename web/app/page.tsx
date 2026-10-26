@@ -109,6 +109,11 @@ export default function Landing() {
             Baustelle oder im Büro fehlt.
           </p>
         </div>
+        <div className="lp-stats">
+          <div className="sheet lp-stat"><b>85 %</b><span>weniger Zeitaufwand</span></div>
+          <div className="sheet lp-stat"><b>60 %</b><span>geringere Kosten</span></div>
+          <p className="hint lp-stat-note">Im Vergleich zum Nachzeichnen von Hand. Schätzung pro Grundriss, abhängig von Plan und Größe.</p>
+        </div>
       </section>
 
       <section className="lp-sec" id="unterschied">

@@ -337,3 +337,9 @@ footer.foot a { color: var(--muted) }
   .lp-row-hd > span:first-child { display: none }
   .lp-cta .btn { flex: 1 }
 }
+.lp-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 280px)); gap: 16px }
+.lp-stat { padding: 24px 26px; display: grid; gap: 4px }
+.lp-stat b { font-size: clamp(40px, 6vw, 56px); font-weight: 700; letter-spacing: -.04em; line-height: 1; color: var(--accent) }
+.lp-stat span { font-size: 16px; font-weight: 600 }
+.lp-stat-note { grid-column: 1 / -1; margin: 0 }
+@media (max-width: 560px) { .lp-stats { grid-template-columns: 1fr 1fr; gap: 10px } .lp-stat { padding: 18px } .lp-stat span { font-size: 14px } }
