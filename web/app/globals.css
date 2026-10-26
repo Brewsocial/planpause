@@ -343,3 +343,15 @@ footer.foot a { color: var(--muted) }
 .lp-stat span { font-size: 16px; font-weight: 600 }
 .lp-stat-note { grid-column: 1 / -1; margin: 0 }
 @media (max-width: 560px) { .lp-stats { grid-template-columns: 1fr 1fr; gap: 10px } .lp-stat { padding: 18px } .lp-stat span { font-size: 14px } }
+.lp-prices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; max-width: 860px }
+.lp-price { padding: clamp(24px, 3vw, 32px) }
+.lp-price-hi { box-shadow: inset 0 0 0 2px var(--accent), var(--shadow) }
+.lp-badge { display: inline-block; margin: 0 0 14px; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 980px; background: var(--accent-soft); color: var(--accent) }
+.lp-amount { margin: 12px 0 18px; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap }
+.lp-amount b { font-size: 44px; letter-spacing: -.04em; line-height: 1 }
+.lp-amount span { color: var(--muted) }
+.lp-price ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; color: var(--muted) }
+.lp-price li::before { content: "✓ "; color: var(--ok); font-weight: 700 }
+.lp-promise { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; padding: 16px 20px; border-radius: var(--r-sm); background: var(--ok-soft) }
+.lp-promise b { color: var(--ok) }
+@media (max-width: 640px) { .lp-prices { grid-template-columns: 1fr } }

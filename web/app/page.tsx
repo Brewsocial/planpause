@@ -49,6 +49,8 @@ const FAQ: [string, string][] = [
     "Als DXF in Millimetern, mit getrennten Layern für Wände, Fenster, Türen, Räume mit Fläche, Bemaßung und Prüfpunkte. DXF öffnen alle gängigen CAD-Programme, etwa AutoCAD, BricsCAD, ArchiCAD, Vectorworks oder DraftSight."],
   ["Mein Gebäude ist auf mehrere Zeichnungen verteilt. Geht das?",
     "Ja. Ein Projekt fasst alle Pläne eines Gebäudes zusammen. Mehrere Zeichnungen desselben Geschosses, etwa Altbau und Anbau, schiebst du einfach aneinander. Sie rasten an den Außenecken ein und lassen sich als ein gemeinsames DXF exportieren."],
+  ["Was kostet ein Grundriss?",
+    "Zum Einführungspreis 20 € pro Grundriss, im 10er-Paket 179 €. Zeigt die Qualitätsampel Rot, zahlst du für diesen Grundriss nichts. Als Kleinunternehmer weisen wir keine Umsatzsteuer aus, die Preise sind Endpreise."],
   ["Ersetzt Planpause das Aufmaß vor Ort?",
     "Nein. Planpause macht aus einem vorhandenen Plan eine saubere Arbeitsgrundlage. Wo der Plan nichts hergibt oder sich widerspricht, zeigt Planpause das offen an, damit du gezielt nachmessen kannst."],
   ["Wie bekomme ich Zugang?",
@@ -62,6 +64,7 @@ const jsonLd = {
       "@type": "SoftwareApplication", name: "Planpause", url: SITE_URL, applicationCategory: "DesignApplication",
       operatingSystem: "Web", inLanguage: "de", description: DESCRIPTION,
       publisher: { "@type": "Organization", name: "KiCO" },
+      offers: { "@type": "Offer", price: "20.00", priceCurrency: "EUR", description: "Einführungspreis pro Grundriss" },
     },
     {
       "@type": "FAQPage",
@@ -112,7 +115,7 @@ export default function Landing() {
         <div className="lp-stats">
           <div className="sheet lp-stat"><b>85 %</b><span>weniger Zeitaufwand</span></div>
           <div className="sheet lp-stat"><b>60 %</b><span>geringere Kosten</span></div>
-          <p className="hint lp-stat-note">Im Vergleich zum Nachzeichnen von Hand. Schätzung pro Grundriss, abhängig von Plan und Größe.</p>
+          <p className="hint lp-stat-note">Im Vergleich zum Nachzeichnen von Hand, Schätzung pro Geschoss: von Hand rund 1,5 bis 2,5 Stunden, bei 60 € Stundensatz etwa 110 €. Mit Planpause 20 € plus rund 15 Minuten zum Prüfen. Abhängig von Plan und Größe.</p>
         </div>
       </section>
 
@@ -175,6 +178,42 @@ export default function Landing() {
           <li><b>Auch ohne Maße.</b> Fehlt die Bemaßung, liefert Planpause trotzdem eine Zeichnung und sagt dir deutlich, dass der Maßstab geschätzt ist.</li>
           <li><b>Am Handy nutzbar.</b> Plan fotografieren, hochladen, später am Rechner als DXF weiterverarbeiten.</li>
         </ul>
+      </section>
+
+      <section className="lp-sec" id="preise">
+        <div className="lp-sec-hd">
+          <p className="lp-kicker">Preise</p>
+          <h2>Bezahlt wird pro Grundriss. Ohne Abo.</h2>
+          <p className="lead">Ein Grundriss ist eine Zeichnung, meist ein Geschoss. Du zahlst nur, was du digitalisierst.</p>
+        </div>
+        <div className="lp-prices">
+          <div className="sheet lp-price">
+            <p className="lp-badge">Einführungspreis</p>
+            <h3>Einzelner Grundriss</h3>
+            <p className="lp-amount"><b>20 €</b><span>pro Grundriss</span></p>
+            <ul>
+              <li>Auswertung der Maßketten</li>
+              <li>DXF mit Layern und Bemaßung</li>
+              <li>Prüfbericht mit Qualitätsampel</li>
+              <li>Geschosse zusammensetzen</li>
+            </ul>
+          </div>
+          <div className="sheet lp-price lp-price-hi">
+            <p className="lp-badge">Für Betriebe</p>
+            <h3>10er-Paket</h3>
+            <p className="lp-amount"><b>179 €</b><span>rund 18 € pro Grundriss</span></p>
+            <ul>
+              <li>Alles aus dem Einzelpreis</li>
+              <li>Für beliebige Projekte nutzbar</li>
+              <li>Rund 10 % günstiger als einzeln</li>
+            </ul>
+          </div>
+          <div className="lp-promise">
+            <b>Ampel rot? Dann kostenlos.</b>
+            <span>Wenn der Plan nicht genug hergibt, zahlst du für diesen Grundriss nichts.</span>
+          </div>
+        </div>
+        <p className="hint">Endpreise, keine Umsatzsteuer nach § 19 UStG. Während der Testphase ist Planpause nur auf Einladung nutzbar.</p>
       </section>
 
       <section className="lp-sec">
