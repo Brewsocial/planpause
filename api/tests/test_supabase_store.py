@@ -13,15 +13,19 @@ class FakeSupabase:
     def __init__(self):
         self.tables = {"orgs": [], "org_members": [], "projects": []}
         self.objects: dict[str, bytes] = {}
+        self.users: dict[str, dict] = {}
 
     def _match(self, row, params):
         for k, v in params.items():
             if k == "select":
                 continue
             op, val = v.split(".", 1)
-            assert op == "eq"
+            assert op in ("eq", "gte")
             got = row["meta"].get(k.split("->>")[1]) if "->>" in k else row.get(k)
-            if str(got) != val:
+            if op == "gte":
+                if got is not None and str(got) < val:  # ohne created_at: gerade angelegt
+                    return False
+            elif str(got) != val:
                 return False
         return True
 
@@ -30,6 +34,16 @@ class FakeSupabase:
         if path == "/auth/v1/user":
             ok = req.headers.get("authorization") == "Bearer gutes-token"
             return httpx.Response(200 if ok else 401, json=USER if ok else {})
+        if path == "/auth/v1/admin/users" and req.method == "POST":
+            body = json.loads(req.content)
+            if any(u["email"] == body["email"] for u in self.users.values()):
+                return httpx.Response(422, json={"msg": "A user with this email address has already been registered"})
+            u = {"id": f"00000000-0000-0000-0000-{len(self.users) + 1:012d}", "email": body["email"]}
+            self.users[u["id"]] = u
+            return httpx.Response(200, json=u)
+        if m := re.fullmatch(r"/auth/v1/admin/users/(.+)", path):
+            self.users.pop(m[1], None)
+            return httpx.Response(200, json={})
         if m := re.fullmatch(r"/rest/v1/(\w+)", path):
             rows = self.tables[m[1]]
             profile = req.headers.get("accept-profile" if req.method == "GET" else "content-profile")
@@ -43,9 +57,11 @@ class FakeSupabase:
                     rows.append(body)
                 return httpx.Response(201)
             if req.method == "PATCH":
-                for r in rows:
-                    if self._match(r, params):
-                        r.update(json.loads(req.content))
+                hit = [r for r in rows if self._match(r, params)]
+                for r in hit:
+                    r.update(json.loads(req.content))
+                if "return=representation" in req.headers.get("prefer", ""):
+                    return httpx.Response(200, json=hit)
                 return httpx.Response(204)
             if req.method == "DELETE":
                 self.tables[m[1]] = [r for r in rows if not self._match(r, params)]
@@ -97,7 +113,7 @@ def test_projektablauf_mit_supabase(sb):
     c, fake, main = sb
     main.store.ensure_org("malerbetrieb-mueller", "Malerbetrieb Müller")
     fake.tables["org_members"].append({"user_id": USER["id"], "org_id": "malerbetrieb-mueller"})
-    assert c.get("/me", headers=H).json() == {"org": "malerbetrieb-mueller", "name": "Malerbetrieb Müller"}
+    assert c.get("/me", headers=H).json() | {"contact": ""} == {"org": "malerbetrieb-mueller", "name": "Malerbetrieb Müller", "trial_left": None, "contact": ""}
 
     pid = c.post("/projects/demo/darmstaedter14", headers=H).json()["id"]
     assert [p["id"] for p in c.get("/projects", headers=H).json()] == [pid]
@@ -124,3 +140,30 @@ def test_neustart_setzt_haengende_analyse_zurueck(sb):
     main.store.update_meta("betrieb-a", pid, status="analyse")
     assert main.store.reset_stuck() == 1
     assert main.store.meta("betrieb-a", pid)["status"] == "fehler"
+
+
+def test_selbst_registrierung_legt_konto_und_probebetrieb_an(sb):
+    c, fake, main = sb
+    neu = {"email": " Info@Maler-Huber.de ", "password": "geheim123", "company": "Malerbetrieb Hüber GmbH", "business": True}
+    assert c.post("/signup", json={**neu, "business": False}).status_code == 400
+    assert c.post("/signup", json={**neu, "password": "kurz"}).status_code == 400
+    r = c.post("/signup", json=neu, headers={"X-Planpause-Client-IP": "1.2.3.4"})
+    assert r.status_code == 200, r.text
+    org = r.json()["org"]
+    assert org.startswith("malerbetrieb-hueber-gmbh-")
+    assert [u["email"] for u in fake.users.values()] == ["info@maler-huber.de"]
+    assert fake.tables["orgs"] == [{"id": org, "name": "Malerbetrieb Hüber GmbH", "trial_left": main.TRIAL_ANALYSES}]
+    assert fake.tables["org_members"][0]["org_id"] == org
+    assert c.post("/signup", json=neu).status_code == 409  # gleiche E-Mail
+    assert len(fake.tables["orgs"]) == 1
+
+
+def test_registrierung_begrenzt(sb, monkeypatch):
+    c, fake, main = sb
+    monkeypatch.setattr(main, "SIGNUPS_PER_DAY", 1)
+    ok = lambda i: {"email": f"a{i}@b.de", "password": "geheim123", "company": f"Betrieb {i}", "business": True}  # noqa: E731
+    assert c.post("/signup", json=ok(1)).status_code == 200
+    assert c.post("/signup", json=ok(2)).status_code == 429  # Tagesgrenze
+    monkeypatch.setattr(main, "SIGNUPS_PER_DAY", 99)
+    ip = {"X-Planpause-Client-IP": "9.9.9.9"}
+    assert [c.post("/signup", json=ok(i), headers=ip).status_code for i in range(3, 7)] == [200, 200, 200, 429]

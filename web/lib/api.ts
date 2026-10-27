@@ -30,7 +30,9 @@ const json = (body: unknown): RequestInit => ({ body: JSON.stringify(body), head
 
 export const api = {
   health: () => call<{ ok: boolean; claude: boolean }>("/health"),
-  me: () => call<{ org: string; name: string }>("/me"),
+  me: () => call<{ org: string; name: string; trial_left: number | null; contact: string }>("/me"),
+  signup: (body: { company: string; email: string; password: string; business: boolean }) =>
+    call<{ org: string; trial_left: number }>("/signup", { method: "POST", ...json(body) }),
   list: () => call<Meta[]>("/projects"),
   get: (id: string) => call<Project>(`/projects/${id}`),
   demo: (name: "bungalow" | "darmstaedter14", folderId = "") =>

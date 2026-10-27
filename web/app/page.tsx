@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { CadPlan, PaperPlan } from "@/components/PlanSketch";
-import { LEGAL } from "@/lib/legal";
 import { SITE_URL } from "@/lib/site";
 
 const TITLE = "Grundriss digitalisieren: Foto oder PDF in DXF umwandeln";
@@ -14,7 +13,7 @@ export const metadata: Metadata = {
   openGraph: { type: "website", locale: "de_DE", url: "/", siteName: "Planpause", title: TITLE, description: DESCRIPTION },
 };
 
-const CONTACT = `mailto:${LEGAL.email}?subject=${encodeURIComponent("Planpause ausprobieren")}`;
+const TRY = "/registrieren";
 
 const STEPS = [
   { t: "Plan hochladen", d: "Foto vom Papierplan, Scan oder PDF. Beim PDF wählst du Seite und Ausschnitt, beim Handy reicht ein Foto direkt von der Baustelle." },
@@ -54,7 +53,7 @@ const FAQ: [string, string][] = [
   ["Ersetzt Planpause das Aufmaß vor Ort?",
     "Nein. Planpause macht aus einem vorhandenen Plan eine saubere Arbeitsgrundlage. Wo der Plan nichts hergibt oder sich widerspricht, zeigt Planpause das offen an, damit du gezielt nachmessen kannst."],
   ["Wie bekomme ich Zugang?",
-    "Planpause ist in der Testphase und nur auf Einladung nutzbar. Schreib uns kurz, wofür du es einsetzen möchtest, dann schicken wir dir einen Zugang."],
+    "Über „Jetzt ausprobieren“ legst du in einer Minute ein Konto für deinen Betrieb an und kannst direkt dein erstes Projekt erstellen. Die ersten zwei Grundrisse sind kostenlos."],
 ];
 
 const jsonLd = {
@@ -87,7 +86,7 @@ export default function Landing() {
             eine DXF, mit der du im CAD sofort weiterarbeiten kannst.
           </p>
           <div className="lp-cta">
-            <a className="btn primary big" href={CONTACT}>Jetzt ausprobieren</a>
+            <a className="btn primary big" href={TRY}>Jetzt ausprobieren</a>
             <a className="btn ghost big" href="#so-gehts">So funktioniert es</a>
           </div>
           <ul className="lp-facts">
@@ -209,7 +208,7 @@ export default function Landing() {
             </ul>
           </div>
         </div>
-        <p className="hint">Endpreise, keine Umsatzsteuer nach § 19 UStG. Während der Testphase ist Planpause nur auf Einladung nutzbar.</p>
+        <p className="hint">Endpreise, keine Umsatzsteuer nach § 19 UStG. Zum Ausprobieren sind die ersten zwei Grundrisse kostenlos.</p>
       </section>
 
       <section className="lp-sec">
@@ -238,10 +237,10 @@ export default function Landing() {
 
       <section className="sheet lp-final">
         <h2>Schick uns deinen nächsten Bestandsplan.</h2>
-        <p className="lead">Planpause ist in der Testphase. Wir freuen uns über Betriebe, die es an echten Plänen ausprobieren.</p>
+        <p className="lead">Konto anlegen, Projekt erstellen, Plan hochladen. Die ersten zwei Grundrisse sind kostenlos.</p>
         <div className="lp-cta">
-          <a className="btn primary big" href={CONTACT}>Jetzt ausprobieren</a>
-          <a className="btn big" href="/login">Ich habe schon einen Zugang</a>
+          <a className="btn primary big" href={TRY}>Jetzt ausprobieren</a>
+          <a className="btn big" href="/login">Ich habe schon ein Konto</a>
         </div>
       </section>
     </main>

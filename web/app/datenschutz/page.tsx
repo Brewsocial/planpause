@@ -32,7 +32,7 @@ export default function Datenschutz() {
         Speicherdauer: <Check>Aufbewahrungsdauer der Server-Protokolle festlegen, z. B. 7 Tage</Check></p>
 
       <h3>b) Benutzerkonto</h3>
-      <p>Für die Nutzung ist ein Konto erforderlich, das wir auf Einladung anlegen. Verarbeitet werden: E-Mail-Adresse, Passwort
+      <p>Für die Nutzung ist ein Konto erforderlich, das Sie selbst registrieren oder das wir auf Einladung anlegen. Verarbeitet werden: Name des Betriebs, E-Mail-Adresse, Passwort
         (nur verschlüsselt gespeichert), Zeitpunkte von Anmeldungen sowie die Zuordnung zu einem Betrieb.</p>
       <p>Zweck: Anmeldung und Trennung der Daten verschiedener Betriebe<br />
         Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung bzw. Durchführung der Testphase)</p>

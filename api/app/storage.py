@@ -22,6 +22,10 @@ class NotFound(Exception):
     pass
 
 
+class UserExists(Exception):
+    """Für diese E-Mail gibt es schon ein Konto."""
+
+
 def _check(part: str) -> str:
     if not SAFE.match(part):
         raise NotFound(part)
@@ -54,6 +58,20 @@ class Store:
             (self.root / "orgs.json").write_text(json.dumps(orgs, indent=1))
         (self._org(org) / "projects").mkdir(parents=True, exist_ok=True)
         return orgs[org]["api_key"]
+
+    def trial_left(self, org: str) -> int | None:
+        """Verbleibende kostenlose Analysen eines Probe-Betriebs; None = ohne Begrenzung."""
+        return self.orgs().get(org, {}).get("trial_left")
+
+    def set_trial_left(self, org: str, n: int | None) -> None:
+        orgs = self.orgs()
+        if org not in orgs:
+            raise NotFound(org)
+        orgs[org]["trial_left"] = n
+        (self.root / "orgs.json").write_text(json.dumps(orgs, indent=1))
+
+    def orgs_created_since(self, ts: float) -> int:
+        return sum(1 for d in self.orgs().values() if d.get("created", 0) > ts)
 
     def org_for_key(self, key: str) -> str | None:
         for org, d in self.orgs().items():

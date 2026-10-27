@@ -353,3 +353,5 @@ footer.foot a { color: var(--muted) }
 .lp-price ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; color: var(--muted) }
 .lp-price li::before { content: "✓ "; color: var(--ok); font-weight: 700 }
 @media (max-width: 640px) { .lp-prices { grid-template-columns: 1fr } }
+.auth .check { align-items: flex-start; font-size: 14px; line-height: 1.4 }
+.auth .check input { margin-top: 3px; flex: none }

@@ -3,7 +3,7 @@
 // Worker → Einstellungen → Variablen), z. B. die Adresse des Cloudflare-Tunnels zum Mac.
 
 // Alle Pfade der API; neue Endpunkte hier ergänzen, sonst liefert der Worker stattdessen eine Seite aus
-const API_PREFIXES = ["/health", "/me", "/projects", "/folders", "/pdf", "/admin"];
+const API_PREFIXES = ["/health", "/me", "/signup", "/projects", "/folders", "/pdf", "/admin"];
 
 export default {
   async fetch(request, env) {
@@ -13,8 +13,11 @@ export default {
 
     if (!env.API_ORIGIN) return unavailable("API_ORIGIN ist nicht gesetzt.");
     const target = new URL(url.pathname + url.search, env.API_ORIGIN);
+    const fwd = new Request(target, request);
+    // Adresse des Besuchers für die Begrenzung von Registrierungen (vom Worker gesetzt, nicht vom Browser)
+    fwd.headers.set("X-Planpause-Client-IP", request.headers.get("cf-connecting-ip") || "");
     try {
-      const res = await fetch(new Request(target, request));
+      const res = await fetch(fwd);
       // Tunnel weg (Mac aus oder im Ruhezustand): Cloudflare antwortet mit 502/530 und einer HTML-Seite
       if ([502, 503, 504, 530].includes(res.status) && !(res.headers.get("content-type") || "").includes("json")) {
         return unavailable(`Antwort ${res.status}`);

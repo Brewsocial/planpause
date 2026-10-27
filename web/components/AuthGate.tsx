@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
 
-const PUBLIC = ["/", "/login", "/impressum", "/datenschutz"];
+const PUBLIC = ["/", "/login", "/registrieren", "/impressum", "/datenschutz"];
 
 /** Leitet ohne Anmeldung zur Login-Seite und zeigt den Betrieb im Kopf an. */
 export function AuthGate({ children }: { children: React.ReactNode }) {
@@ -27,7 +27,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   if (denied) return (
     <main className="sheet auth">
       <h2>Kein Zugang zu Planpause</h2>
-      <p className="muted">{denied} Planpause ist in der Testphase nur auf Einladung nutzbar.</p>
+      <p className="muted">{denied} Für ein eigenes Konto bitte abmelden und unter „Jetzt ausprobieren“ registrieren.</p>
       <button className="btn" onClick={() => supabase?.auth.signOut().then(() => { window.location.href = "/login"; })}>Abmelden</button>
     </main>
   );

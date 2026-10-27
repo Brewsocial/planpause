@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import secrets
 import time
 from pathlib import Path
@@ -25,7 +26,7 @@ from planpause_engine.model import Measurement, PlanModel
 from planpause_engine.pipeline import analyze, issues_from
 from planpause_engine.preprocess import Prepared, prepare
 
-from .storage import NotFound, Store
+from .storage import NotFound, Store, UserExists
 
 log = logging.getLogger("planpause")
 SUPABASE = bool(os.environ.get("SUPABASE_URL"))
@@ -35,6 +36,10 @@ if SUPABASE:
 else:
     store = Store()
 DAILY_ANALYSES = int(os.environ.get("PLANPAUSE_DAILY_ANALYSES", "20"))
+# Selbst-Registrierung: kostenlose Grundrisse pro neuem Betrieb und Obergrenze neuer Konten pro Tag (Schutz vor Missbrauch)
+TRIAL_ANALYSES = int(os.environ.get("PLANPAUSE_TRIAL_ANALYSES", "2"))
+SIGNUPS_PER_DAY = int(os.environ.get("PLANPAUSE_SIGNUPS_PER_DAY", "25"))
+CONTACT = os.environ.get("PLANPAUSE_CONTACT_EMAIL", "info.brewsocial@gmail.com")
 DEMO = Path(__file__).resolve().parents[1] / "demo"
 FIXTURES = Path(__file__).resolve().parents[2] / "engine" / "tests" / "fixtures"
 DEMOS = {"bungalow": ("plan_bungalow.json", "bungalow.jpg"), "darmstaedter14": ("plan_darmstaedter14.json", "darmstaedter14.jpg")}
@@ -113,6 +118,63 @@ def invite(org_id: str, body: InviteIn):
     return _nf(lambda: store.invite(org_id, body.email.strip(), body.redirect_to or f"{site}/login?setpw=1"))
 
 
+class TrialIn(BaseModel):
+    trial_left: int | None  # None: ohne Begrenzung (zahlender Betrieb)
+
+
+@app.patch("/admin/orgs/{org_id}", dependencies=[Depends(admin)])
+def set_trial(org_id: str, body: TrialIn):
+    """Probe-Kontingent ändern, z. B. nach Zahlung freischalten: {"trial_left": null}."""
+    _nf(lambda: store.set_trial_left(org_id, body.trial_left))
+    return {"org": org_id, "trial_left": body.trial_left}
+
+
+class SignupIn(BaseModel):
+    email: str
+    password: str
+    company: str
+    business: bool = False
+
+
+_signups: dict[str, list[float]] = {}  # Anmeldungen je IP-Adresse der letzten Stunde (nur im Speicher)
+
+
+@app.post("/signup")
+def signup(body: SignupIn, x_planpause_client_ip: str = Header(default="")):
+    if not SUPABASE:
+        raise HTTPException(501, "Registrierung gibt es nur mit Supabase")
+    email = body.email.strip().lower()
+    company = " ".join(body.company.split())
+    if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[a-z]{2,}", email):
+        raise HTTPException(400, "Bitte eine gültige E-Mail-Adresse angeben.")
+    if len(body.password) < 8:
+        raise HTTPException(400, "Das Passwort braucht mindestens 8 Zeichen.")
+    if not 2 <= len(company) <= 80:
+        raise HTTPException(400, "Bitte den Namen deines Betriebs angeben.")
+    if not body.business:
+        raise HTTPException(400, "Planpause ist nur für die gewerbliche Nutzung gedacht.")
+    now, ip = time.time(), x_planpause_client_ip or "?"
+    recent = [t for t in _signups.get(ip, []) if t > now - 3600]
+    if len(recent) >= 3:
+        raise HTTPException(429, "Zu viele Registrierungen von diesem Anschluss. Bitte später erneut versuchen.")
+    if store.orgs_created_since(now - 24 * 3600) >= SIGNUPS_PER_DAY:
+        raise HTTPException(429, f"Heute sind schon sehr viele neue Konten entstanden. Bitte morgen erneut versuchen oder schreib uns an {CONTACT}.")
+    slug = re.sub(r"[^a-z0-9]+", "-", company.lower().translate(str.maketrans({"ä": "ae", "ö": "oe", "ü": "ue", "ß": "ss"}))).strip("-")
+    org_id = f"{slug[:40].strip('-') or 'betrieb'}-{secrets.token_hex(3)}"
+    if not org_id[0].isalnum():
+        org_id = "b" + org_id
+    try:
+        store.signup(org_id, company, email, body.password, TRIAL_ANALYSES)
+    except UserExists:
+        raise HTTPException(409, "Für diese E-Mail gibt es schon ein Konto. Bitte melde dich an.")
+    except Exception:  # z. B. Datenbankschema noch nicht aktualisiert (supabase/schema.sql)
+        log.exception("Registrierung fehlgeschlagen")
+        raise HTTPException(503, f"Die Registrierung klappt gerade nicht. Bitte später erneut versuchen oder schreib uns an {CONTACT}.")
+    _signups[ip] = [*recent, now]
+    log.info("Neuer Betrieb %s", org_id)
+    return {"org": org_id, "trial_left": TRIAL_ANALYSES}
+
+
 # ------------------------------------------------------------------ Projekte
 
 @app.get("/health")
@@ -122,7 +184,7 @@ def health():
 
 @app.get("/me")
 def me(o: str = Depends(org)):
-    return {"org": o, "name": store.org_name(o)}
+    return {"org": o, "name": store.org_name(o), "trial_left": store.trial_left(o), "contact": CONTACT}
 
 
 # Begriffe: In der Oberfläche ist ein "Projekt" ein Ordner (z. B. ein Haus) mit mehreren "Grundrissen".
@@ -396,6 +458,9 @@ def _run_extraction(o: str, pid: str) -> None:
             store.write_json(o, pid, "extraction_log.json", e.log)
             _add_cost(o, pid, e.log)
         store.update_meta(o, pid, status="fehler", error=_friendly_error(e))
+        left = store.trial_left(o)
+        if left is not None:  # fehlgeschlagene Analyse zählt nicht gegen die kostenlosen Grundrisse
+            store.set_trial_left(o, left + 1)
 
 
 def _add_cost(o: str, pid: str, info: dict) -> None:
@@ -431,6 +496,11 @@ def start_analysis(pid: str, bg: BackgroundTasks, o: str = Depends(org)):
     since = time.time() - 24 * 3600
     if sum(1 for m in store.list(o) for t in m.get("analyses", []) if t > since) >= DAILY_ANALYSES:
         raise HTTPException(429, f"Tageslimit von {DAILY_ANALYSES} Analysen erreicht. Bitte morgen weitermachen.")
+    left = store.trial_left(o)
+    if left is not None:
+        if left <= 0:
+            raise HTTPException(402, f"Deine kostenlosen Grundrisse sind aufgebraucht. Für weitere Grundrisse schreib uns an {CONTACT}.")
+        store.set_trial_left(o, left - 1)
     bg.add_task(_run_extraction, o, pid)
     return store.update_meta(o, pid, status="analyse", analyses=[*meta.get("analyses", []), time.time()])
 

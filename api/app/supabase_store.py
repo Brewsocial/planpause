@@ -16,7 +16,7 @@ import time
 
 import httpx
 
-from .storage import NotFound, _check
+from .storage import NotFound, UserExists, _check
 
 BUCKET = os.environ.get("PLANPAUSE_BUCKET", "planpause")
 SCHEMA = os.environ.get("PLANPAUSE_DB_SCHEMA", "planpause")
@@ -73,6 +73,37 @@ class SupabaseStore:
     def ensure_org(self, org: str, name: str, api_key: str | None = None) -> None:
         self._rest("POST", "orgs", body={"id": _check(org), "name": name},
                    prefer="resolution=ignore-duplicates,return=minimal")
+
+    def trial_left(self, org: str) -> int | None:
+        """Verbleibende kostenlose Analysen eines Probe-Betriebs; None = ohne Begrenzung."""
+        try:
+            rows = self._rest("GET", "orgs", {"id": f"eq.{_check(org)}", "select": "trial_left"})
+        except httpx.HTTPStatusError:  # Spalte noch nicht angelegt (supabase/schema.sql): keine Begrenzung
+            return None
+        return rows[0].get("trial_left") if rows else None
+
+    def set_trial_left(self, org: str, n: int | None) -> None:
+        if not self._rest("PATCH", "orgs", {"id": f"eq.{_check(org)}"}, body={"trial_left": n}, prefer="return=representation"):
+            raise NotFound(org)
+
+    def orgs_created_since(self, ts: float) -> int:
+        since = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(ts))
+        return len(self._rest("GET", "orgs", {"created_at": f"gte.{since}", "select": "id"}))
+
+    def signup(self, org: str, name: str, email: str, password: str, trial: int) -> None:
+        """Selbst-Registrierung: Konto über die Admin-Schnittstelle anlegen (die Registrierung des
+        Supabase-Projekts bleibt aus, sie gehört einer anderen App), dazu ein eigener Probe-Betrieb."""
+        r = self.http.post("/auth/v1/admin/users", json={"email": email, "password": password, "email_confirm": True})
+        if r.status_code in (409, 422) and any(w in r.text.lower() for w in ("already", "exists", "registered")):
+            raise UserExists(email)
+        r.raise_for_status()
+        uid = r.json()["id"]
+        try:
+            self._rest("POST", "orgs", body={"id": _check(org), "name": name, "trial_left": trial}, prefer="return=minimal")
+            self._rest("POST", "org_members", body={"user_id": uid, "org_id": org}, prefer="return=minimal")
+        except Exception:
+            self.http.delete(f"/auth/v1/admin/users/{uid}")  # kein halbes Konto ohne Betrieb zurücklassen
+            raise
 
     def invite(self, org: str, email: str, redirect_to: str | None) -> dict:
         """Lädt einen Benutzer per E-Mail ein (oder findet ihn) und ordnet ihn dem Betrieb zu."""

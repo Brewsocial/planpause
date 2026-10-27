@@ -46,3 +46,7 @@ alter default privileges in schema planpause grant all on tables to service_role
 insert into storage.buckets (id, name, public, file_size_limit)
 values ('planpause', 'planpause', false, 26214400)
 on conflict (id) do nothing;
+
+-- Selbst-Registrierung (Oktober 2026): kostenlose Grundrisse eines Probe-Betriebs.
+-- null = ohne Begrenzung (eingeladene und zahlende Betriebe), Zahl = verbleibende kostenlose Analysen.
+alter table planpause.orgs add column if not exists trial_left integer;

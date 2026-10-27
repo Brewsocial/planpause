@@ -13,7 +13,7 @@
   },
   // Adresse der Planpause-API (Tunnel zum Mac). Bei neuer Tunnel-Adresse hier in beiden wrangler.jsonc ändern
   // und pushen; eine Änderung nur im Cloudflare-Dashboard wird beim nächsten Deployment überschrieben.
-  "vars": { "API_ORIGIN": "https://statistics-katie-cat-segment.trycloudflare.com" },
+  "vars": { "API_ORIGIN": "https://orange-browser-tuesday-hottest.trycloudflare.com" },
   "keep_vars": true,
   "observability": { "enabled": true }
 }

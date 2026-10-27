@@ -67,7 +67,8 @@ def test_pfad_manipulation(client):
 
 
 def test_me_zeigt_betrieb(client):
-    assert client.get("/me", headers=H).json() == {"org": "demo-betrieb", "name": "Demo-Betrieb"}
+    me = client.get("/me", headers=H).json()
+    assert (me["org"], me["name"], me["trial_left"]) == ("demo-betrieb", "Demo-Betrieb", None)
 
 
 def test_tageslimit_und_doppelstart(client, monkeypatch):
@@ -268,3 +269,33 @@ def test_vorschaubild_verkleinert(client):
     small = client.get(f"/projects/{pid}/image?max=500", headers=H).content
     img = cv2.imdecode(np.frombuffer(small, np.uint8), cv2.IMREAD_GRAYSCALE)
     assert max(img.shape) == 500 and len(small) < len(full) / 3
+
+
+def test_probe_kontingent(client, monkeypatch):
+    import app.main as main
+    import planpause_engine.extract as ex
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "x")
+    adm = {"X-Admin-Token": "admin"}
+    assert client.patch("/admin/orgs/demo-betrieb", headers=adm, json={"trial_left": 1}).status_code == 200
+    assert client.patch("/admin/orgs/gibt-es-nicht", headers=adm, json={"trial_left": 1}).status_code == 404
+    assert client.get("/me", headers=H).json()["trial_left"] == 1
+    a = client.post("/projects/demo/bungalow", headers=H).json()["id"]
+    b = client.post("/projects/demo/bungalow", headers=H).json()["id"]
+    monkeypatch.setattr(main, "_run_extraction", lambda o, pid: None)
+    assert client.post(f"/projects/{a}/analyze", headers=H).status_code == 200
+    assert client.get("/me", headers=H).json()["trial_left"] == 0
+    r = client.post(f"/projects/{b}/analyze", headers=H)
+    assert r.status_code == 402 and "aufgebraucht" in r.json()["detail"]
+    # Fehlgeschlagene Analyse gibt den Grundriss zurück
+    monkeypatch.undo()
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "x")
+    monkeypatch.setattr(ex, "extract_plan", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("kaputt")))
+    main._run_extraction("demo-betrieb", a)
+    assert client.get("/me", headers=H).json()["trial_left"] == 1
+    # Freischalten: ohne Begrenzung
+    client.patch("/admin/orgs/demo-betrieb", headers=adm, json={"trial_left": None})
+    assert client.post(f"/projects/{b}/analyze", headers=H).status_code == 200
+
+
+def test_registrierung_nur_mit_supabase(client):
+    assert client.post("/signup", json={"email": "a@b.de", "password": "geheim123", "company": "X GmbH", "business": True}).status_code == 501
