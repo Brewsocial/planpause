@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   openGraph: { type: "website", locale: "de_DE", url: "/", siteName: "Planpause", title: TITLE, description: DESCRIPTION },
 };
 
-const CONTACT = `mailto:${LEGAL.email}?subject=${encodeURIComponent("Testzugang Planpause")}`;
+const CONTACT = `mailto:${LEGAL.email}?subject=${encodeURIComponent("Planpause ausprobieren")}`;
 
 const STEPS = [
   { t: "Plan hochladen", d: "Foto vom Papierplan, Scan oder PDF. Beim PDF wählst du Seite und Ausschnitt, beim Handy reicht ein Foto direkt von der Baustelle." },
@@ -50,7 +50,7 @@ const FAQ: [string, string][] = [
   ["Mein Gebäude ist auf mehrere Zeichnungen verteilt. Geht das?",
     "Ja. Ein Projekt fasst alle Pläne eines Gebäudes zusammen. Mehrere Zeichnungen desselben Geschosses, etwa Altbau und Anbau, schiebst du einfach aneinander. Sie rasten an den Außenecken ein und lassen sich als ein gemeinsames DXF exportieren."],
   ["Was kostet ein Grundriss?",
-    "Zum Einführungspreis 20 € pro Grundriss, im 10er-Paket 179 €. Zeigt die Qualitätsampel Rot, zahlst du für diesen Grundriss nichts. Als Kleinunternehmer weisen wir keine Umsatzsteuer aus, die Preise sind Endpreise."],
+    "Zum Einführungspreis 20 € pro Grundriss, im 10er-Paket 179 €. Als Kleinunternehmer weisen wir keine Umsatzsteuer aus, die Preise sind Endpreise."],
   ["Ersetzt Planpause das Aufmaß vor Ort?",
     "Nein. Planpause macht aus einem vorhandenen Plan eine saubere Arbeitsgrundlage. Wo der Plan nichts hergibt oder sich widerspricht, zeigt Planpause das offen an, damit du gezielt nachmessen kannst."],
   ["Wie bekomme ich Zugang?",
@@ -87,7 +87,7 @@ export default function Landing() {
             eine DXF, mit der du im CAD sofort weiterarbeiten kannst.
           </p>
           <div className="lp-cta">
-            <a className="btn primary big" href={CONTACT}>Testzugang anfragen</a>
+            <a className="btn primary big" href={CONTACT}>Jetzt ausprobieren</a>
             <a className="btn ghost big" href="#so-gehts">So funktioniert es</a>
           </div>
           <ul className="lp-facts">
@@ -194,7 +194,7 @@ export default function Landing() {
             <ul>
               <li>Auswertung der Maßketten</li>
               <li>DXF mit Layern und Bemaßung</li>
-              <li>Prüfbericht mit Qualitätsampel</li>
+              <li>Prüfbericht mit markierten Unstimmigkeiten</li>
               <li>Geschosse zusammensetzen</li>
             </ul>
           </div>
@@ -207,10 +207,6 @@ export default function Landing() {
               <li>Für beliebige Projekte nutzbar</li>
               <li>Rund 10 % günstiger als einzeln</li>
             </ul>
-          </div>
-          <div className="lp-promise">
-            <b>Ampel rot? Dann kostenlos.</b>
-            <span>Wenn der Plan nicht genug hergibt, zahlst du für diesen Grundriss nichts.</span>
           </div>
         </div>
         <p className="hint">Endpreise, keine Umsatzsteuer nach § 19 UStG. Während der Testphase ist Planpause nur auf Einladung nutzbar.</p>
@@ -244,7 +240,7 @@ export default function Landing() {
         <h2>Schick uns deinen nächsten Bestandsplan.</h2>
         <p className="lead">Planpause ist in der Testphase. Wir freuen uns über Betriebe, die es an echten Plänen ausprobieren.</p>
         <div className="lp-cta">
-          <a className="btn primary big" href={CONTACT}>Testzugang anfragen</a>
+          <a className="btn primary big" href={CONTACT}>Jetzt ausprobieren</a>
           <a className="btn big" href="/login">Ich habe schon einen Zugang</a>
         </div>
       </section>

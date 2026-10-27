@@ -352,6 +352,4 @@ footer.foot a { color: var(--muted) }
 .lp-amount span { color: var(--muted) }
 .lp-price ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; color: var(--muted) }
 .lp-price li::before { content: "✓ "; color: var(--ok); font-weight: 700 }
-.lp-promise { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; padding: 16px 20px; border-radius: var(--r-sm); background: var(--ok-soft) }
-.lp-promise b { color: var(--ok) }
 @media (max-width: 640px) { .lp-prices { grid-template-columns: 1fr } }
