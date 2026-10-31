@@ -36,7 +36,7 @@ export default function Register() {
         <div>
           <h1 style={{ fontSize: 30 }}>Planpause ausprobieren</h1>
           <p className="muted" style={{ margin: "6px 0 0" }}>
-            Konto anlegen, Projekt erstellen, ersten Grundriss hochladen. Deine ersten Grundrisse sind kostenlos.
+            Konto anlegen, Projekt erstellen, ersten Grundriss hochladen.
           </p>
         </div>
         <label className="field">Name deines Betriebs

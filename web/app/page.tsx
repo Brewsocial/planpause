@@ -53,7 +53,7 @@ const FAQ: [string, string][] = [
   ["Ersetzt Planpause das Aufmaß vor Ort?",
     "Nein. Planpause macht aus einem vorhandenen Plan eine saubere Arbeitsgrundlage. Wo der Plan nichts hergibt oder sich widerspricht, zeigt Planpause das offen an, damit du gezielt nachmessen kannst."],
   ["Wie bekomme ich Zugang?",
-    "Über „Jetzt ausprobieren“ legst du in einer Minute ein Konto für deinen Betrieb an und kannst direkt dein erstes Projekt erstellen. Die ersten zwei Grundrisse sind kostenlos."],
+    "Über „Jetzt ausprobieren“ legst du in einer Minute ein Konto für deinen Betrieb an und kannst direkt dein erstes Projekt erstellen."],
 ];
 
 const jsonLd = {
@@ -208,7 +208,7 @@ export default function Landing() {
             </ul>
           </div>
         </div>
-        <p className="hint">Endpreise, keine Umsatzsteuer nach § 19 UStG. Zum Ausprobieren sind die ersten zwei Grundrisse kostenlos.</p>
+        <p className="hint">Endpreise, keine Umsatzsteuer nach § 19 UStG.</p>
       </section>
 
       <section className="lp-sec">
@@ -237,7 +237,7 @@ export default function Landing() {
 
       <section className="sheet lp-final">
         <h2>Schick uns deinen nächsten Bestandsplan.</h2>
-        <p className="lead">Konto anlegen, Projekt erstellen, Plan hochladen. Die ersten zwei Grundrisse sind kostenlos.</p>
+        <p className="lead">Konto anlegen, Projekt erstellen, Plan hochladen. In wenigen Minuten hast du deine erste DXF.</p>
         <div className="lp-cta">
           <a className="btn primary big" href={TRY}>Jetzt ausprobieren</a>
           <a className="btn big" href="/login">Ich habe schon ein Konto</a>
