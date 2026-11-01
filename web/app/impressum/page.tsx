@@ -33,10 +33,14 @@ export default function Impressum() {
         unberührt. Eine diesbezügliche Haftung ist jedoch erst ab dem Zeitpunkt der Kenntnis einer konkreten Rechtsverletzung
         möglich. Bei Bekanntwerden entsprechender Rechtsverletzungen werden wir diese Inhalte umgehend entfernen.</p>
 
-      <h2>Hinweis zu den Ergebnissen</h2>
-      <p>{LEGAL.product} befindet sich in der Testphase. Die digitalisierten Grundrisse werden automatisch aus Fotos und Scans
-        erstellt, teilweise mit Hilfe künstlicher Intelligenz, und können fehlerhaft sein. Sie ersetzen kein Aufmaß vor Ort.
-        Maße sind vor ihrer Verwendung zu prüfen.</p>
+      <h2>Haftung für die Ergebnisse</h2>
+      <p>{LEGAL.product} erstellt digitale Grundrisse automatisch aus Fotos, Scans und PDFs, teilweise mit Hilfe künstlicher
+        Intelligenz. Die Ergebnisse können trotz sorgfältiger Auswertung Fehler enthalten, etwa falsch gelesene Maße, fehlende oder
+        falsch zugeordnete Bauteile oder Abweichungen vom tatsächlichen Bestand. Sie ersetzen kein Aufmaß vor Ort.</p>
+      <p>Maße und Inhalte sind vor jeder Verwendung, insbesondere für Planung, Kalkulation, Bestellung oder Ausführung,
+        eigenverantwortlich zu prüfen. Für Fehler in den erstellten Grundrissen und für Schäden, die aus ihrer Verwendung entstehen,
+        übernehmen wir keine Haftung, soweit dies gesetzlich zulässig ist. Unberührt bleibt die Haftung für Vorsatz und grobe
+        Fahrlässigkeit, für Schäden aus der Verletzung von Leben, Körper oder Gesundheit sowie nach dem Produkthaftungsgesetz.</p>
 
       <h2>Haftung für Links</h2>
       <p>Unser Angebot enthält ggf. Links zu externen Websites Dritter, auf deren Inhalte wir keinen Einfluss haben. Deshalb können
