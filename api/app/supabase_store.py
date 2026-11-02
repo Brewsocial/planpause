@@ -82,6 +82,14 @@ class SupabaseStore:
             return None
         return rows[0].get("trial_left") if rows else None
 
+    def is_private(self, org: str) -> bool:
+        """Verbraucher (§ 13 BGB): vor jeder Auswertung Zustimmung zum vorzeitigen Beginn nötig (Widerrufsrecht)."""
+        try:
+            rows = self._rest("GET", "orgs", {"id": f"eq.{_check(org)}", "select": "private"})
+        except httpx.HTTPStatusError:  # Spalte noch nicht angelegt (supabase/schema.sql): alle Konten gewerblich
+            return False
+        return bool(rows and rows[0].get("private"))
+
     def set_trial_left(self, org: str, n: int | None) -> None:
         if not self._rest("PATCH", "orgs", {"id": f"eq.{_check(org)}"}, body={"trial_left": n}, prefer="return=representation"):
             raise NotFound(org)
@@ -90,7 +98,7 @@ class SupabaseStore:
         since = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(ts))
         return len(self._rest("GET", "orgs", {"created_at": f"gte.{since}", "select": "id"}))
 
-    def signup(self, org: str, name: str, email: str, password: str, trial: int) -> None:
+    def signup(self, org: str, name: str, email: str, password: str, trial: int, private: bool = False) -> None:
         """Selbst-Registrierung: Konto über die Admin-Schnittstelle anlegen (die Registrierung des
         Supabase-Projekts bleibt aus, sie gehört einer anderen App), dazu ein eigener Probe-Betrieb."""
         r = self.http.post("/auth/v1/admin/users", json={"email": email, "password": password, "email_confirm": True})
@@ -99,7 +107,7 @@ class SupabaseStore:
         r.raise_for_status()
         uid = r.json()["id"]
         try:
-            self._rest("POST", "orgs", body={"id": _check(org), "name": name, "trial_left": trial}, prefer="return=minimal")
+            self._rest("POST", "orgs", body={"id": _check(org), "name": name, "trial_left": trial, **({"private": True} if private else {})}, prefer="return=minimal")
             self._rest("POST", "org_members", body={"user_id": uid, "org_id": org}, prefer="return=minimal")
         except Exception:
             self.http.delete(f"/auth/v1/admin/users/{uid}")  # kein halbes Konto ohne Betrieb zurücklassen

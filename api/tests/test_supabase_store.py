@@ -113,7 +113,7 @@ def test_projektablauf_mit_supabase(sb):
     c, fake, main = sb
     main.store.ensure_org("malerbetrieb-mueller", "Malerbetrieb Müller")
     fake.tables["org_members"].append({"user_id": USER["id"], "org_id": "malerbetrieb-mueller"})
-    assert c.get("/me", headers=H).json() | {"contact": ""} == {"org": "malerbetrieb-mueller", "name": "Malerbetrieb Müller", "trial_left": None, "contact": ""}
+    assert c.get("/me", headers=H).json() | {"contact": ""} == {"org": "malerbetrieb-mueller", "name": "Malerbetrieb Müller", "trial_left": None, "private": False, "contact": ""}
 
     pid = c.post("/projects/demo/darmstaedter14", headers=H).json()["id"]
     assert [p["id"] for p in c.get("/projects", headers=H).json()] == [pid]
@@ -156,6 +156,10 @@ def test_selbst_registrierung_legt_konto_und_probebetrieb_an(sb):
     assert fake.tables["org_members"][0]["org_id"] == org
     assert c.post("/signup", json=neu).status_code == 409  # gleiche E-Mail
     assert len(fake.tables["orgs"]) == 1
+    privat = {**neu, "email": "anna@example.com", "company": "Anna Müller", "business": False}
+    org = c.post("/signup", json=privat).json()["org"]
+    assert fake.tables["orgs"][1] == {"id": org, "name": "Anna Müller", "trial_left": main.TRIAL_ANALYSES, "private": True}
+    assert main.store.is_private(org) and not main.store.is_private(fake.tables["orgs"][0]["id"])
 
 
 def test_registrierung_begrenzt(sb, monkeypatch):

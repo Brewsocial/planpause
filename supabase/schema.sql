@@ -50,3 +50,4 @@ on conflict (id) do nothing;
 -- Selbst-Registrierung (Oktober 2026): kostenlose Grundrisse eines Probe-Betriebs.
 -- null = ohne Begrenzung (eingeladene und zahlende Betriebe), Zahl = verbleibende kostenlose Analysen.
 alter table planpause.orgs add column if not exists trial_left integer;
+alter table planpause.orgs add column if not exists private boolean not null default false;

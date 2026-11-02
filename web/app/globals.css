@@ -355,3 +355,5 @@ footer.foot a { color: var(--muted) }
 @media (max-width: 640px) { .lp-prices { grid-template-columns: 1fr } }
 .auth .check { align-items: flex-start; font-size: 14px; line-height: 1.4 }
 .auth .check input { margin-top: 3px; flex: none }
+.waiver { font-size: 14px; line-height: 1.4; align-items: flex-start }
+.waiver input { margin-top: 3px; flex: none }

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import PdfSetup, { type Crop } from "@/components/PdfSetup";
 import PhotoPicker, { PhotoTips } from "@/components/PhotoPicker";
 import PlanCard from "@/components/PlanCard";
+import { Waiver, usePrivate } from "@/components/Waiver";
 import { api } from "@/lib/api";
 import { floorOrder } from "@/lib/status";
 import type { Folder, Meta } from "@/lib/types";
@@ -22,6 +23,8 @@ export default function FolderPage() {
   const [floor, setFloor] = useState("EG");
   const [part, setPart] = useState("");
   const [notes, setNotes] = useState("");
+  const priv = usePrivate();
+  const [consent, setConsent] = useState(false);
   const [pdf, setPdf] = useState<{ page: number; crop: Crop | null }>({ page: 1, crop: null });
 
   const load = useCallback(() => api.folder(id).then(setData).catch((e) => setErr(e.message)), [id]);
@@ -48,7 +51,7 @@ export default function FolderPage() {
       const name = part ? `${data.folder.name} – ${floor} ${part}` : `${data.folder.name} – ${floor}`;
       const p = await api.upload(file, { name, notes, folder_id: id, floor, part,
         ...(isPdf ? { page: String(pdf.page), crop: pdf.crop ? pdf.crop.map((v) => v.toFixed(4)).join(",") : "" } : {}) });
-      if (claude && !p.warnings?.length) await api.analyze(p.id);  // bei Warnungen erst den Nutzer entscheiden lassen
+      if (claude && !p.warnings?.length) await api.analyze(p.id, consent);  // bei Warnungen erst den Nutzer entscheiden lassen
       router.push(`/grundriss?id=${p.id}`);
     } catch (x) { setErr((x as Error).message); setBusy(false); }
   }
@@ -105,6 +108,7 @@ export default function FolderPage() {
                   <input type="text" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Maßstab, Einheit, Besonderheiten" />
                 </label>
               </details>
+              {priv && claude && <Waiver checked={consent} onChange={setConsent} />}
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <button className="btn primary big" disabled={busy}>{busy ? "Wird hochgeladen …" : claude ? "Hochladen und analysieren" : "Hochladen"}</button>
                 <button type="button" className="btn" disabled={busy} onClick={() => pick(null)}>{isPdf ? "Andere Datei" : "Anderes Foto"}</button>

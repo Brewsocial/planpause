@@ -30,7 +30,7 @@ const json = (body: unknown): RequestInit => ({ body: JSON.stringify(body), head
 
 export const api = {
   health: () => call<{ ok: boolean; claude: boolean }>("/health"),
-  me: () => call<{ org: string; name: string; trial_left: number | null; contact: string }>("/me"),
+  me: () => call<{ org: string; name: string; trial_left: number | null; private: boolean; contact: string }>("/me"),
   signup: (body: { company: string; email: string; password: string; business: boolean; terms: boolean }) =>
     call<{ org: string; trial_left: number }>("/signup", { method: "POST", ...json(body) }),
   list: () => call<Meta[]>("/projects"),
@@ -58,7 +58,7 @@ export const api = {
   removeFolder: (id: string) => call<{ ok: boolean }>(`/folders/${id}`, { method: "DELETE" }),
   floorParts: (id: string, floor: string) =>
     call<{ parts: ({ id: string; label: string } & Placement)[]; saved: boolean }>(`/folders/${id}/floors/${encodeURIComponent(floor)}/geometry`),
-  analyze: (id: string) => call<Meta>(`/projects/${id}/analyze`, { method: "POST" }),
+  analyze: (id: string, consent = false) => call<Meta>(`/projects/${id}/analyze`, { method: "POST", ...json({ consent }) }),
   remove: (id: string) => call<{ ok: boolean }>(`/projects/${id}`, { method: "DELETE" }),
   measure: (id: string, m: { axis: string; a: string; b: string; value: number; note?: string }) =>
     call<Result>(`/projects/${id}/measurements`, { method: "POST", ...json(m) }),

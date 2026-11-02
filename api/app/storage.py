@@ -70,6 +70,10 @@ class Store:
         orgs[org]["trial_left"] = n
         (self.root / "orgs.json").write_text(json.dumps(orgs, indent=1))
 
+    def is_private(self, org: str) -> bool:
+        """Verbraucher (§ 13 BGB): vor jeder Auswertung Zustimmung zum vorzeitigen Beginn nötig (Widerrufsrecht)."""
+        return bool(self.orgs().get(org, {}).get("private"))
+
     def orgs_created_since(self, ts: float) -> int:
         return sum(1 for d in self.orgs().values() if d.get("created", 0) > ts)
 

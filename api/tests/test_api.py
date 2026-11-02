@@ -297,5 +297,18 @@ def test_probe_kontingent(client, monkeypatch):
     assert client.post(f"/projects/{b}/analyze", headers=H).status_code == 200
 
 
+def test_verbraucher_muessen_vorzeitigem_beginn_zustimmen(client, monkeypatch):
+    import app.main as main
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "x")
+    monkeypatch.setattr(main, "_run_extraction", lambda o, pid: None)
+    a = client.post("/projects/demo/bungalow", headers=H).json()["id"]
+    assert client.get("/me", headers=H).json()["private"] is False
+    monkeypatch.setattr(main.store, "is_private", lambda o: True)
+    r = client.post(f"/projects/{a}/analyze", headers=H)
+    assert r.status_code == 428 and "Widerrufsrecht" in r.json()["detail"]
+    r = client.post(f"/projects/{a}/analyze", headers=H, json={"consent": True})
+    assert r.status_code == 200 and len(r.json()["consents"]) == 1
+
+
 def test_registrierung_nur_mit_supabase(client):
     assert client.post("/signup", json={"email": "a@b.de", "password": "geheim123", "company": "X GmbH", "business": True, "terms": True}).status_code == 501

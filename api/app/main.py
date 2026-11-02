@@ -165,7 +165,7 @@ def signup(body: SignupIn, x_planpause_client_ip: str = Header(default="")):
     if not org_id[0].isalnum():
         org_id = "b" + org_id
     try:
-        store.signup(org_id, company, email, body.password, TRIAL_ANALYSES)
+        store.signup(org_id, company, email, body.password, TRIAL_ANALYSES, private=not body.business)
     except UserExists:
         raise HTTPException(409, "Für diese E-Mail gibt es schon ein Konto. Bitte melde dich an.")
     except Exception:  # z. B. Datenbankschema noch nicht aktualisiert (supabase/schema.sql)
@@ -185,7 +185,8 @@ def health():
 
 @app.get("/me")
 def me(o: str = Depends(org)):
-    return {"org": o, "name": store.org_name(o), "trial_left": store.trial_left(o), "contact": CONTACT}
+    return {"org": o, "name": store.org_name(o), "trial_left": store.trial_left(o), "private": store.is_private(o),
+            "contact": CONTACT}
 
 
 # Begriffe: In der Oberfläche ist ein "Projekt" ein Ordner (z. B. ein Haus) mit mehreren "Grundrissen".
@@ -487,9 +488,16 @@ def _friendly_error(e: Exception) -> str:
     return "Bei der Analyse ist ein unerwarteter Fehler aufgetreten. Bitte erneut versuchen."
 
 
+class AnalyzeIn(BaseModel):
+    consent: bool = False  # Verbraucher: Auswertung soll sofort beginnen, Widerrufsrecht erlischt (AGB § 9)
+
+
 @app.post("/projects/{pid}/analyze")
-def start_analysis(pid: str, bg: BackgroundTasks, o: str = Depends(org)):
+def start_analysis(pid: str, bg: BackgroundTasks, body: AnalyzeIn | None = None, o: str = Depends(org)):
     meta = _nf(lambda: store.meta(o, pid))
+    private = store.is_private(o)
+    if private and not (body and body.consent):
+        raise HTTPException(428, "Bitte bestätige vor der Auswertung, dass sie sofort beginnen soll und dein Widerrufsrecht damit erlischt.")
     if not os.environ.get("ANTHROPIC_API_KEY"):
         raise HTTPException(503, "Kein ANTHROPIC_API_KEY gesetzt. Für Tests ein Demo-Projekt anlegen.")
     if meta.get("status") == "analyse":
@@ -503,7 +511,8 @@ def start_analysis(pid: str, bg: BackgroundTasks, o: str = Depends(org)):
             raise HTTPException(402, f"Deine kostenlosen Grundrisse sind aufgebraucht. Für weitere Grundrisse schreib uns an {CONTACT}.")
         store.set_trial_left(o, left - 1)
     bg.add_task(_run_extraction, o, pid)
-    return store.update_meta(o, pid, status="analyse", analyses=[*meta.get("analyses", []), time.time()])
+    extra = {"consents": [*meta.get("consents", []), time.time()]} if private else {}  # Nachweis der Zustimmung
+    return store.update_meta(o, pid, status="analyse", analyses=[*meta.get("analyses", []), time.time()], **extra)
 
 
 @app.get("/projects/{pid}")

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import PlanView from "@/components/PlanView";
 import Link from "next/link";
 import { api, costText, download, fmt } from "@/lib/api";
+import { Waiver, usePrivate } from "@/components/Waiver";
 import { statusBadge } from "@/lib/status";
 import type { Folder, Issue, MeasureHint, Project, Quality, Result } from "@/lib/types";
 
@@ -24,6 +25,8 @@ export default function PlanPage() {
   const id = useSearchParams().get("id") ?? "";
   const [p, setP] = useState<Project | null>(null);
   const [err, setErr] = useState("");
+  const priv = usePrivate();
+  const [consent, setConsent] = useState(false);
   const [tab, setTab] = useState<Tab>("pruefung");
   const [sel, setSel] = useState<string | null>(null);
   const [filter, setFilter] = useState<"alle" | Issue["severity"]>("alle");
@@ -70,7 +73,7 @@ export default function PlanPage() {
     if (!p || !confirm(`Projekt „${p.meta.name}“ endgültig löschen? Foto und Ergebnisse werden entfernt.`)) return;
     api.remove(id).then(() => { window.location.href = home; }).catch((e) => setErr(e.message));
   };
-  const analyze = () => api.analyze(id).then(load).catch((e) => setErr(e.message));
+  const analyze = () => api.analyze(id, consent).then(load).catch((e) => setErr(e.message));
 
   if (err) return <p className="err">{err}</p>;
   if (!p) return <p className="muted">Lade Grundriss …</p>;
@@ -96,7 +99,8 @@ export default function PlanPage() {
           <div className="badges"><span className="badge crit">Analyse fehlgeschlagen</span></div>
           <p style={{ margin: 0 }}>{p.meta.error}</p>
           {costText(p.meta) && <span className="hint">KI-Kosten bisher: {costText(p.meta)}</span>}
-          <div><button className="btn primary" onClick={analyze}>Erneut versuchen</button></div>
+          {priv && <Waiver checked={consent} onChange={setConsent} />}
+          <div><button className="btn primary" onClick={analyze} disabled={priv && !consent}>Erneut versuchen</button></div>
         </div>)}
       {p.meta.status === "aufbereitet" && (
         <div className="sheet summary">
@@ -107,8 +111,9 @@ export default function PlanPage() {
               <span className="hint">Jede Analyse kostet KI-Guthaben. Mit einem besseren Foto wird das Ergebnis deutlich genauer.</span>
             </div>)}
           <p className="muted" style={{ margin: 0 }}>Das Foto ist aufbereitet{p.meta.steps?.length ? `: ${p.meta.steps.join(", ")}` : ""}.</p>
+          {priv && <Waiver checked={consent} onChange={setConsent} />}
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button className="btn primary big" onClick={analyze}>{p.meta.warnings?.length ? "Trotzdem analysieren" : "Analyse starten"}</button>
+            <button className="btn primary big" onClick={analyze} disabled={priv && !consent}>{p.meta.warnings?.length ? "Trotzdem analysieren" : "Analyse starten"}</button>
             {!!p.meta.warnings?.length && <Link className="btn big" href={home}>Neues Foto</Link>}
           </div>
         </div>)}

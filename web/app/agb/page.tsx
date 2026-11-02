@@ -77,7 +77,7 @@ export default function Agb() {
         heruntergeladene Ergebnisse selbst sichern.</p>
       <p>Diese Regelungen gelten auch zugunsten unserer Erfüllungsgehilfen.</p>
 
-      <h2>§ 9 Widerrufsrecht für Verbraucher</h2>
+      <h2 id="widerruf">§ 9 Widerrufsrecht für Verbraucher</h2>
       <p>Verbrauchern steht bei kostenpflichtigen Bestellungen das folgende Widerrufsrecht zu.</p>
 
       <h3>Widerrufsbelehrung</h3>
