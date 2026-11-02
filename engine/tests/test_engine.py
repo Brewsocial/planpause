@@ -121,6 +121,42 @@ def test_dxf_export_lesbar(bungalow):
     assert len(doc.modelspace().query("HATCH")) >= 40
 
 
+def test_ifc_export_gueltiges_bestandsmodell(bungalow, tmp_path):
+    import ifcopenshell
+    import ifcopenshell.geom
+    import ifcopenshell.util.element as ue
+    import ifcopenshell.validate
+
+    from planpause_engine.ifc import to_ifc
+
+    g = analyze(bungalow)["geometry"]
+    p = tmp_path / "eg.ifc"
+    p.write_bytes(to_ifc([{"name": "EG", "geometry": g}, {"name": "OG", "geometry": g}], "Bungalow", height=260))
+    m = ifcopenshell.open(str(p))
+    log = ifcopenshell.validate.json_logger()
+    ifcopenshell.validate.validate(m, log)
+    assert log.statements == []
+    assert [s.Name for s in m.by_type("IfcBuildingStorey")] == ["EG", "OG"]
+    assert m.by_type("IfcBuildingStorey")[1].Elevation == pytest.approx(2.9)  # 2,60 m Raumhöhe + 30 cm Decke
+    # Jede Öffnung schneidet eine Wand, Fenster und Türen sitzen darin
+    assert len(m.by_type("IfcOpeningElement")) == 2 * len(g["openings"])
+    assert all(o.VoidsElements[0].RelatingBuildingElement.is_a("IfcWall") for o in m.by_type("IfcOpeningElement"))
+    windows = m.by_type("IfcWindow")
+    assert len(windows) == 2 * sum(o["type"] == "window" for o in g["openings"])
+    assert all(w.FillsVoids for w in windows)
+    stated = next(o for o in g["openings"] if o["type"] == "window" and o["height_stated"] and o["sill_stated"])
+    assert any(w.OverallHeight == pytest.approx(stated["height_stated"] / 100) for w in windows)  # Höhe aus dem Plan
+    # Räume mit Fläche und Kennzeichnung der Annahmen
+    sp = m.by_type("IfcSpace")[0]
+    psets = ue.get_psets(sp)
+    room = next(r for r in g["rooms"] if r["name"] == sp.Name)
+    assert psets["Qto_SpaceBaseQuantities"]["NetFloorArea"] == pytest.approx(room["area_stated"] or room["area_geom"], abs=0.01)
+    assert psets["Planpause_Bestand"]["HoeheAngenommen"] is True
+    st = ifcopenshell.geom.settings()
+    for el in m.by_type("IfcWall")[:10] + windows[:3]:
+        ifcopenshell.geom.create_shape(st, el)  # Körper lässt sich erzeugen
+
+
 def test_bericht(darmstaedter):
     r = analyze(darmstaedter)
     md = to_report(darmstaedter.title, r["geometry"], issues_from(r))

@@ -42,6 +42,10 @@ def test_demo_projekt_messung_und_export(client):
     assert dxf.status_code == 200 and b"SECTION" in dxf.content[:200]
     md = client.get(f"/projects/{pid}/export/md", headers=H)
     assert "Nachmessliste" in md.text
+    ifc = client.get(f"/projects/{pid}/export/ifc?height=265", headers=H)
+    assert ifc.status_code == 200 and b"FILE_SCHEMA(('IFC4'))" in ifc.content[:1000] and b"IFCWALL" in ifc.content
+    assert ifc.headers["content-disposition"].endswith('.ifc"')
+    assert client.get(f"/projects/{pid}/export/ifc?height=50", headers=H).status_code == 422
     assert client.get(f"/projects/{pid}/image", headers=H).headers["content-type"] == "image/jpeg"
 
 
@@ -196,6 +200,8 @@ def test_projekt_mit_grundrissen_und_geschoss(client):
 
     dxf = client.get(f"/folders/{fid}/floors/EG/export/dxf", headers=H)
     assert dxf.status_code == 200 and b"SECTION" in dxf.content[:200] and "Haus_Lindenweg_4_EG" in dxf.headers["content-disposition"]
+    ifc = client.get(f"/folders/{fid}/floors/EG/export/ifc", headers=H)
+    assert ifc.status_code == 200 and "Haus_Lindenweg_4_EG.ifc" in ifc.headers["content-disposition"]
     assert client.get(f"/folders/{fid}/floors/OG/geometry", headers=H).status_code == 404
 
 

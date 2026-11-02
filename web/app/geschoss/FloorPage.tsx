@@ -29,6 +29,7 @@ export default function FloorPage() {
   const [saving, setSaving] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [unit, setUnit] = useState<"mm" | "cm" | "m">("mm");
+  const [height, setHeight] = useState(2.5);  // lichte Raumhöhe in m für das IFC-Modell (Annahme)
   const svgRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
@@ -68,6 +69,12 @@ export default function FloorPage() {
       await api.patchFolder(fid, { assembly: { [floor]: Object.fromEntries(parts.map((p) => [p.id, p.place])) } });
       setDirty(false);
     } catch (e) { setErr((e as Error).message); } finally { setSaving(false); }
+  }
+
+  async function exportIfc() {
+    if (dirty) await save();
+    await download(`/folders/${fid}/floors/${encodeURIComponent(floor)}/export/ifc?height=${Math.round(height * 100)}`, `${name} – ${floor}.ifc`)
+      .catch((e) => setErr(e.message));
   }
 
   async function exportDxf() {
@@ -196,10 +203,12 @@ export default function FloorPage() {
               <option value="mm">mm</option><option value="cm">cm</option><option value="m">m</option>
             </select>
             <button className="btn" onClick={exportDxf}>DXF des Geschosses</button>
+            <label className="check">Raumhöhe <input type="number" min={1.8} max={6} step={0.05} value={height} onChange={(e) => setHeight(+e.target.value || 2.5)} style={{ width: 72 }} /> m</label>
+            <button className="btn" onClick={exportIfc}>IFC des Geschosses</button>
           </div>
           {err && <p className="err" style={{ margin: 0 }}>{err}</p>}
           <p className="hint" style={{ margin: 0 }}>
-            Tipp: Erst „Ecken verbinden“, danach mit x/y in cm feinjustieren. Die DXF enthält alle Zeichnungen dieses Geschosses in ihrer Lage.
+            Tipp: Erst „Ecken verbinden“, danach mit x/y in cm feinjustieren. DXF und IFC enthalten alle Zeichnungen dieses Geschosses in ihrer Lage.
           </p>
         </section>
       </div>

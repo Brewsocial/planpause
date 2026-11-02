@@ -16,12 +16,13 @@ import time
 from pathlib import Path
 from typing import Literal
 
-from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
+from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, Header, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse, Response
 from pydantic import BaseModel
 
 from planpause_engine.export import to_dxf, to_report
+from planpause_engine.ifc import to_ifc
 from planpause_engine.model import Measurement, PlanModel
 from planpause_engine.pipeline import analyze, issues_from
 from planpause_engine.preprocess import Prepared, prepare
@@ -416,6 +417,13 @@ def floor_dxf(fid: str, floor: str, unit: Literal["mm", "cm", "m"] = "mm", o: st
     return Response(data, media_type="application/dxf", headers={"Content-Disposition": f'attachment; filename="{_slug(f["name"])}_{_slug(floor)}.dxf"'})
 
 
+@app.get("/folders/{fid}/floors/{floor}/export/ifc")
+def floor_ifc(fid: str, floor: str, height: float = Query(250, ge=180, le=600), o: str = Depends(org)):
+    f = _folder(o, fid)
+    data = to_ifc([{"name": floor, "geometry": _floor_geometry(o, fid, floor)}], f"{f['name']} – {floor}", height)
+    return Response(data, media_type="application/x-step", headers={"Content-Disposition": f'attachment; filename="{_slug(f["name"])}_{_slug(floor)}.ifc"'})
+
+
 def _save_plan(o: str, pid: str, plan: PlanModel) -> dict:
     result = analyze(plan)
     store.write_json(o, pid, "plan.json", plan.model_dump(mode="json"))
@@ -600,13 +608,17 @@ def put_answers(pid: str, answers: dict[str, str], o: str = Depends(org)):
 
 
 @app.get("/projects/{pid}/export/{fmt}")
-def export(pid: str, fmt: Literal["dxf", "md", "json"], unit: Literal["mm", "cm", "m"] = "mm", o: str = Depends(org)):
+def export(pid: str, fmt: Literal["dxf", "ifc", "md", "json"], unit: Literal["mm", "cm", "m"] = "mm",
+           height: float = Query(250, ge=180, le=600), o: str = Depends(org)):
     meta = _nf(lambda: store.meta(o, pid))
     plan, result = _plan(o, pid), store.read_json(o, pid, "result.json")
     slug = _slug(meta["name"])
     if fmt == "dxf":
         data = to_dxf(result["geometry"], issues_from(result), unit, plan.title or meta["name"])
         return Response(data, media_type="application/dxf", headers={"Content-Disposition": f'attachment; filename="{slug}.dxf"'})
+    if fmt == "ifc":  # height: lichte Raumhöhe in cm (Annahme, steht im Grundriss meist nicht)
+        data = to_ifc([{"name": meta.get("floor") or "EG", "geometry": result["geometry"]}], plan.title or meta["name"], height)
+        return Response(data, media_type="application/x-step", headers={"Content-Disposition": f'attachment; filename="{slug}.ifc"'})
     if fmt == "md":
         md = to_report(plan.title or meta["name"], result["geometry"], issues_from(result), store.read_json(o, pid, "answers.json", {}))
         return PlainTextResponse(md, headers={"Content-Disposition": f'attachment; filename="{slug}_pruefbericht.md"'})
