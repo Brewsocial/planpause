@@ -1,11 +1,14 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, download } from "@/lib/api";
 import { outerCorners, PART_COLORS, place, placedBox, rotateInPlace } from "@/lib/floor";
 import type { Geometry, Placement, Result } from "@/lib/types";
+
+const ModelView = dynamic(() => import("@/components/ModelView"), { ssr: false, loading: () => <p className="muted">3D-Ansicht wird geladen …</p> });  // three.js erst bei Bedarf
 
 interface Part { id: string; label: string; geom: Geometry; place: Placement; color: string }
 type Drag =
@@ -29,7 +32,9 @@ export default function FloorPage() {
   const [saving, setSaving] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [unit, setUnit] = useState<"mm" | "cm" | "m">("mm");
-  const [height, setHeight] = useState(2.5);  // lichte Raumhöhe in m für das IFC-Modell (Annahme)
+  const [height, setHeight] = useState(2.5);
+  const [show3d, setShow3d] = useState(false);
+  const [version, setVersion] = useState(0);  // nach dem Speichern 3D neu laden  // lichte Raumhöhe in m für das IFC-Modell (Annahme)
   const svgRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
@@ -69,6 +74,12 @@ export default function FloorPage() {
       await api.patchFolder(fid, { assembly: { [floor]: Object.fromEntries(parts.map((p) => [p.id, p.place])) } });
       setDirty(false);
     } catch (e) { setErr((e as Error).message); } finally { setSaving(false); }
+  }
+
+  async function toggle3d() {
+    if (!show3d && dirty) await save();
+    setVersion((v) => v + 1);
+    setShow3d(!show3d);
   }
 
   async function exportIfc() {
@@ -205,10 +216,12 @@ export default function FloorPage() {
             <button className="btn" onClick={exportDxf}>DXF des Geschosses</button>
             <label className="check">Raumhöhe <input type="number" min={1.8} max={6} step={0.05} value={height} onChange={(e) => setHeight(+e.target.value || 2.5)} style={{ width: 72 }} /> m</label>
             <button className="btn" onClick={exportIfc}>IFC des Geschosses</button>
+            <button className="btn" aria-pressed={show3d} onClick={toggle3d}>{show3d ? "3D schließen" : "3D-Ansicht"}</button>
           </div>
+          {show3d && <ModelView key={version} path={`/folders/${fid}/floors/${encodeURIComponent(floor)}/model`} height={height} />}
           {err && <p className="err" style={{ margin: 0 }}>{err}</p>}
           <p className="hint" style={{ margin: 0 }}>
-            Tipp: Erst „Ecken verbinden“, danach mit x/y in cm feinjustieren. DXF und IFC enthalten alle Zeichnungen dieses Geschosses in ihrer Lage.
+            Tipp: Zeichnungen ziehen, bis sie einrasten, danach mit x/y in cm feinjustieren. DXF und IFC enthalten alle Zeichnungen dieses Geschosses in ihrer Lage.
           </p>
         </section>
       </div>

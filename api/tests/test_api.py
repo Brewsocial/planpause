@@ -46,6 +46,10 @@ def test_demo_projekt_messung_und_export(client):
     assert ifc.status_code == 200 and b"FILE_SCHEMA(('IFC4'))" in ifc.content[:1000] and b"IFCWALL" in ifc.content
     assert ifc.headers["content-disposition"].endswith('.ifc"')
     assert client.get(f"/projects/{pid}/export/ifc?height=50", headers=H).status_code == 422
+    model = client.get(f"/projects/{pid}/model?height=265", headers=H).json()
+    walls = [e for e in model if e["type"] == "IfcWall"]
+    assert walls and max(walls[0]["verts"][2::3]) == 2.65 and len(walls[0]["faces"]) % 3 == 0
+    assert {"IfcWindow", "IfcDoor", "IfcSpace"} <= {e["type"] for e in model}
     assert client.get(f"/projects/{pid}/image", headers=H).headers["content-type"] == "image/jpeg"
 
 
@@ -202,6 +206,7 @@ def test_projekt_mit_grundrissen_und_geschoss(client):
     assert dxf.status_code == 200 and b"SECTION" in dxf.content[:200] and "Haus_Lindenweg_4_EG" in dxf.headers["content-disposition"]
     ifc = client.get(f"/folders/{fid}/floors/EG/export/ifc", headers=H)
     assert ifc.status_code == 200 and "Haus_Lindenweg_4_EG.ifc" in ifc.headers["content-disposition"]
+    assert {e["storey"] for e in client.get(f"/folders/{fid}/floors/EG/model", headers=H).json()} == {"EG"}
     assert client.get(f"/folders/{fid}/floors/OG/geometry", headers=H).status_code == 404
 
 

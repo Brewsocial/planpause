@@ -205,3 +205,28 @@ def to_ifc(storeys: list[dict], title: str = "", height: float = 250.0) -> bytes
         p = Path(d) / "modell.ifc"
         f.write(str(p))
         return p.read_bytes()
+
+
+def to_meshes(ifc: bytes) -> list[dict]:
+    """Dreiecksnetze aller Bauteile eines IFC-Modells für die 3D-Ansicht der App (Weltkoordinaten in m, z nach oben)."""
+    import ifcopenshell
+    import ifcopenshell.geom
+    import ifcopenshell.util.element as ue
+
+    with tempfile.TemporaryDirectory() as d:  # open() liest nur Dateien
+        p = Path(d) / "modell.ifc"
+        p.write_bytes(ifc)
+        model = ifcopenshell.open(str(p))
+    settings = ifcopenshell.geom.settings()
+    settings.set("use-world-coords", True)
+    out = []
+    for el in model.by_type("IfcProduct"):
+        if el.Representation is None or el.is_a("IfcOpeningElement"):
+            continue
+        shape = ifcopenshell.geom.create_shape(settings, el)
+        bestand = ue.get_psets(el).get("Planpause_Bestand", {})
+        storey = ue.get_container(el) or ue.get_aggregate(el)
+        out.append({"type": el.is_a(), "name": el.Name or "", "storey": storey.Name if storey else "",
+                    "estimated": bool(bestand.get("Geschaetzt")),
+                    "verts": [round(v, 3) for v in shape.geometry.verts], "faces": list(shape.geometry.faces)})
+    return out

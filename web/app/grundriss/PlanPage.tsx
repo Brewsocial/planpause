@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import PlanView from "@/components/PlanView";
@@ -8,6 +9,8 @@ import { api, costText, download, fmt } from "@/lib/api";
 import { Waiver, usePrivate } from "@/components/Waiver";
 import { statusBadge } from "@/lib/status";
 import type { Folder, Issue, MeasureHint, Project, Quality, Result } from "@/lib/types";
+
+const ModelView = dynamic(() => import("@/components/ModelView"), { ssr: false, loading: () => <p className="muted">3D-Ansicht wird geladen …</p> });  // three.js erst bei Bedarf
 
 const SEV_LABEL = { kritisch: "Kritisch", pruefen: "Prüfen", info: "Hinweis" } as const;
 const BASE_Q = [
@@ -30,7 +33,7 @@ export default function PlanPage() {
   const [tab, setTab] = useState<Tab>("pruefung");
   const [sel, setSel] = useState<string | null>(null);
   const [filter, setFilter] = useState<"alle" | Issue["severity"]>("alle");
-  const [view, setView] = useState<"digital" | "overlay">("digital");
+  const [view, setView] = useState<"digital" | "overlay" | "3d">("digital");
   const [opacity, setOpacity] = useState(0.7);  // Deckkraft des Fotos; der Plan bleibt immer voll sichtbar
   const [pins, setPins] = useState(true);
   const [chains, setChains] = useState(true);
@@ -162,13 +165,16 @@ export default function PlanPage() {
             <div className="seg" role="group" aria-label="Ansicht">
               <button aria-pressed={view === "digital"} onClick={() => setView("digital")}>Digital</button>
               <button aria-pressed={view === "overlay"} onClick={() => setView("overlay")} disabled={!img || !result.image_transform}>Überlagert</button>
+              <button aria-pressed={view === "3d"} onClick={() => setView("3d")}>3D</button>
             </div>
+            {view === "3d" && <label className="check">Raumhöhe <input type="number" min={1.8} max={6} step={0.05} value={height} onChange={(e) => setHeight(+e.target.value || 2.5)} style={{ width: 72 }} /> m</label>}
             {view === "overlay" && <label className="check">Foto <input type="range" min={0} max={100} value={opacity * 100} onChange={(e) => setOpacity(+e.target.value / 100)} /></label>}
-            <span className="toggles">
+            {view !== "3d" && <span className="toggles">
               <button className="toggle" aria-pressed={pins} onClick={() => setPins(!pins)}>Prüfpunkte</button>
               <button className="toggle" aria-pressed={chains} onClick={() => setChains(!chains)}>Maßketten</button>
-            </span>
+            </span>}
           </div>
+          {view === "3d" ? <ModelView path={`/projects/${id}/model`} height={height} /> : <>
           <div className="zoom-wrap">
             <div className="canvas">
               <div style={{ width: `${zoom * 100}%` }}>
@@ -188,6 +194,7 @@ export default function PlanPage() {
             <span><i style={{ background: "var(--crit)", height: 3 }} />verdächtiges Maß</span>
             <span>Maße in cm</span>
           </div>
+          </>}
         </section>
 
         <section className="sheet" aria-label="Prüfakte">

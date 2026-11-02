@@ -22,7 +22,7 @@ from fastapi.responses import PlainTextResponse, Response
 from pydantic import BaseModel
 
 from planpause_engine.export import to_dxf, to_report
-from planpause_engine.ifc import to_ifc
+from planpause_engine.ifc import to_ifc, to_meshes
 from planpause_engine.model import Measurement, PlanModel
 from planpause_engine.pipeline import analyze, issues_from
 from planpause_engine.preprocess import Prepared, prepare
@@ -417,6 +417,13 @@ def floor_dxf(fid: str, floor: str, unit: Literal["mm", "cm", "m"] = "mm", o: st
     return Response(data, media_type="application/dxf", headers={"Content-Disposition": f'attachment; filename="{_slug(f["name"])}_{_slug(floor)}.dxf"'})
 
 
+@app.get("/folders/{fid}/floors/{floor}/model")
+def floor_model(fid: str, floor: str, height: float = Query(250, ge=180, le=600), o: str = Depends(org)):
+    """3D-Ansicht des Geschosses: Dreiecksnetze aus demselben IFC-Modell wie beim Download."""
+    f = _folder(o, fid)
+    return to_meshes(to_ifc([{"name": floor, "geometry": _floor_geometry(o, fid, floor)}], f"{f['name']} – {floor}", height))
+
+
 @app.get("/folders/{fid}/floors/{floor}/export/ifc")
 def floor_ifc(fid: str, floor: str, height: float = Query(250, ge=180, le=600), o: str = Depends(org)):
     f = _folder(o, fid)
@@ -605,6 +612,16 @@ def put_answers(pid: str, answers: dict[str, str], o: str = Depends(org)):
     _nf(lambda: store.meta(o, pid))
     store.write_json(o, pid, "answers.json", answers)
     return answers
+
+
+@app.get("/projects/{pid}/model")
+def plan_model(pid: str, height: float = Query(250, ge=180, le=600), o: str = Depends(org)):
+    """3D-Ansicht: Dreiecksnetze aus demselben IFC-Modell wie beim Download."""
+    meta = _nf(lambda: store.meta(o, pid))
+    result = store.read_json(o, pid, "result.json")
+    if not result.get("geometry"):
+        raise HTTPException(409, "Der Grundriss ist noch nicht analysiert.")
+    return to_meshes(to_ifc([{"name": meta.get("floor") or "EG", "geometry": result["geometry"]}], meta["name"], height))
 
 
 @app.get("/projects/{pid}/export/{fmt}")

@@ -357,3 +357,10 @@ footer.foot a { color: var(--muted) }
 .auth .check input { margin-top: 3px; flex: none }
 .waiver { font-size: 14px; line-height: 1.4; align-items: flex-start }
 .waiver input { margin-top: 3px; flex: none }
+.model3d { display: grid; gap: 8px }
+.model3d-view { position: relative; height: min(68vh, 560px, 120vw); min-height: 320px; border-radius: 12px; overflow: hidden; background: #f5f5f7 }
+.model3d-view canvas { display: block }
+.model3d-msg { position: absolute; inset: 0; display: grid; place-items: center; margin: 0 }
+.model3d-pick { position: absolute; left: 10px; bottom: 10px; background: rgba(255, 255, 255, .92); border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; font-size: 13px; pointer-events: none }
+.model3d-bar { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center }
+.model3d-dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: #f0b45a }
