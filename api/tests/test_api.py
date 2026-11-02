@@ -298,4 +298,4 @@ def test_probe_kontingent(client, monkeypatch):
 
 
 def test_registrierung_nur_mit_supabase(client):
-    assert client.post("/signup", json={"email": "a@b.de", "password": "geheim123", "company": "X GmbH", "business": True}).status_code == 501
+    assert client.post("/signup", json={"email": "a@b.de", "password": "geheim123", "company": "X GmbH", "business": True, "terms": True}).status_code == 501

@@ -144,8 +144,8 @@ def test_neustart_setzt_haengende_analyse_zurueck(sb):
 
 def test_selbst_registrierung_legt_konto_und_probebetrieb_an(sb):
     c, fake, main = sb
-    neu = {"email": " Info@Maler-Huber.de ", "password": "geheim123", "company": "Malerbetrieb Hüber GmbH", "business": True}
-    assert c.post("/signup", json={**neu, "business": False}).status_code == 400
+    neu = {"email": " Info@Maler-Huber.de ", "password": "geheim123", "company": "Malerbetrieb Hüber GmbH", "business": True, "terms": True}
+    assert c.post("/signup", json={**neu, "terms": False}).status_code == 400
     assert c.post("/signup", json={**neu, "password": "kurz"}).status_code == 400
     r = c.post("/signup", json=neu, headers={"X-Planpause-Client-IP": "1.2.3.4"})
     assert r.status_code == 200, r.text
@@ -161,7 +161,7 @@ def test_selbst_registrierung_legt_konto_und_probebetrieb_an(sb):
 def test_registrierung_begrenzt(sb, monkeypatch):
     c, fake, main = sb
     monkeypatch.setattr(main, "SIGNUPS_PER_DAY", 1)
-    ok = lambda i: {"email": f"a{i}@b.de", "password": "geheim123", "company": f"Betrieb {i}", "business": True}  # noqa: E731
+    ok = lambda i: {"email": f"a{i}@b.de", "password": "geheim123", "company": f"Betrieb {i}", "business": i % 2 == 0, "terms": True}  # noqa: E731
     assert c.post("/signup", json=ok(1)).status_code == 200
     assert c.post("/signup", json=ok(2)).status_code == 429  # Tagesgrenze
     monkeypatch.setattr(main, "SIGNUPS_PER_DAY", 99)

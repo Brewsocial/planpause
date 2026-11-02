@@ -5,12 +5,13 @@ import { useState } from "react";
 import { api } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
 
-/** Selbst-Registrierung: Konto und eigener Betrieb mit kostenlosen Probe-Grundrissen, danach direkt zum ersten Projekt. */
+/** Selbst-Registrierung (gewerblich oder privat): Konto und eigener Betrieb mit kostenlosen Probe-Grundrissen, danach direkt zum ersten Projekt. */
 export default function Register() {
   const [company, setCompany] = useState("");
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
-  const [business, setBusiness] = useState(false);
+  const [business, setBusiness] = useState(true);
+  const [terms, setTerms] = useState(false);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -18,7 +19,7 @@ export default function Register() {
     e.preventDefault();
     setBusy(true); setErr("");
     try {
-      await api.signup({ company, email, password: pw, business });
+      await api.signup({ company, email, password: pw, business, terms });
       if (supabase) {
         const r = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password: pw });
         if (r.error) throw new Error("Dein Konto ist angelegt. Bitte melde dich jetzt an.");
@@ -39,8 +40,12 @@ export default function Register() {
             Konto anlegen, Projekt erstellen, ersten Grundriss hochladen.
           </p>
         </div>
-        <label className="field">Name deines Betriebs
-          <input type="text" autoComplete="organization" value={company} onChange={(e) => setCompany(e.target.value)} placeholder="z. B. Malerbetrieb Müller" required minLength={2} maxLength={80} />
+        <div className="seg" aria-label="Kundenart">
+          <button type="button" aria-pressed={business} onClick={() => setBusiness(true)}>Gewerblich</button>
+          <button type="button" aria-pressed={!business} onClick={() => setBusiness(false)}>Privat</button>
+        </div>
+        <label className="field">{business ? "Name deines Betriebs" : "Dein Name"}
+          <input type="text" autoComplete={business ? "organization" : "name"} value={company} onChange={(e) => setCompany(e.target.value)} placeholder={business ? "z. B. Malerbetrieb Müller" : "z. B. Anna Müller"} required minLength={2} maxLength={80} />
         </label>
         <label className="field">E-Mail
           <input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
@@ -50,8 +55,8 @@ export default function Register() {
           <span className="hint">Mindestens 8 Zeichen</span>
         </label>
         <label className="check">
-          <input type="checkbox" checked={business} onChange={(e) => setBusiness(e.target.checked)} required />
-          <span>Ich nutze Planpause gewerblich. Die <Link href="/datenschutz" target="_blank">Datenschutzerklärung</Link> habe ich gelesen.</span>
+          <input type="checkbox" checked={terms} onChange={(e) => setTerms(e.target.checked)} required />
+          <span>Ich akzeptiere die <Link href="/agb" target="_blank">AGB</Link>. Die <Link href="/datenschutz" target="_blank">Datenschutzerklärung</Link> habe ich gelesen.</span>
         </label>
         <button className="btn primary big" disabled={busy}>{busy ? "Konto wird angelegt …" : "Konto anlegen"}</button>
         {err && <p className="err" style={{ margin: 0 }}>{err}</p>}

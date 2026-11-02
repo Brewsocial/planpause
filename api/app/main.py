@@ -133,7 +133,8 @@ class SignupIn(BaseModel):
     email: str
     password: str
     company: str
-    business: bool = False
+    business: bool = True  # False: Verbraucher (für Widerrufsrecht und Mängelrechte, siehe AGB)
+    terms: bool = False
 
 
 _signups: dict[str, list[float]] = {}  # Anmeldungen je IP-Adresse der letzten Stunde (nur im Speicher)
@@ -150,9 +151,9 @@ def signup(body: SignupIn, x_planpause_client_ip: str = Header(default="")):
     if len(body.password) < 8:
         raise HTTPException(400, "Das Passwort braucht mindestens 8 Zeichen.")
     if not 2 <= len(company) <= 80:
-        raise HTTPException(400, "Bitte den Namen deines Betriebs angeben.")
-    if not body.business:
-        raise HTTPException(400, "Planpause ist nur für die gewerbliche Nutzung gedacht.")
+        raise HTTPException(400, "Bitte deinen Namen oder den deines Betriebs angeben.")
+    if not body.terms:
+        raise HTTPException(400, "Bitte akzeptiere die AGB.")
     now, ip = time.time(), x_planpause_client_ip or "?"
     recent = [t for t in _signups.get(ip, []) if t > now - 3600]
     if len(recent) >= 3:
@@ -171,7 +172,7 @@ def signup(body: SignupIn, x_planpause_client_ip: str = Header(default="")):
         log.exception("Registrierung fehlgeschlagen")
         raise HTTPException(503, f"Die Registrierung klappt gerade nicht. Bitte später erneut versuchen oder schreib uns an {CONTACT}.")
     _signups[ip] = [*recent, now]
-    log.info("Neuer Betrieb %s", org_id)
+    log.info("Neues Konto %s (%s)", org_id, "gewerblich" if body.business else "privat")
     return {"org": org_id, "trial_left": TRIAL_ANALYSES}
 
 

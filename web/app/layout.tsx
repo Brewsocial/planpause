@@ -33,6 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <footer className="foot">
             <span>Planpause · ein Produkt von KiCO</span>
             <Link href="/impressum">Impressum</Link>
+            <Link href="/agb">AGB</Link>
             <Link href="/datenschutz">Datenschutz</Link>
           </footer>
         </div>

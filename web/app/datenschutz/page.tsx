@@ -19,7 +19,7 @@ export default function Datenschutz() {
       <h2>2. Worum es geht</h2>
       <p>{LEGAL.product} digitalisiert Bestandsgrundrisse: Nutzer laden Fotos oder Scans von Grundrissen hoch, die Anwendung liest
         Maßketten und Bauteile aus, prüft die Maße auf Widersprüche und erstellt daraus einen digitalen Plan (z. B. als DXF-Datei).
-        {" "}{LEGAL.product} befindet sich in der Testphase und ist nur für eingeladene Nutzer zugänglich.</p>
+        {" "}{LEGAL.product} richtet sich an gewerbliche und private Kunden.</p>
 
       <h2>3. Erhobene Daten und Zwecke</h2>
 
