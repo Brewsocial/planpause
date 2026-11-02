@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
 
-const PUBLIC = ["/", "/login", "/registrieren", "/impressum", "/datenschutz"];
+const PUBLIC = ["/", "/login", "/registrieren", "/impressum", "/agb", "/datenschutz"];
 
 /** Leitet ohne Anmeldung zur Login-Seite und zeigt den Betrieb im Kopf an. */
 export function AuthGate({ children }: { children: React.ReactNode }) {
