@@ -1,9 +1,8 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 
-const ModelView = dynamic(() => import("@/components/ModelView"), { ssr: false, loading: () => <p className="muted">3D-Ansicht wird geladen …</p> });
+import ModelView from "@/components/LazyModelView";
 
 /** Beispielmodell der Startseite. three.js und das Modell laden erst, wenn der Abschnitt in die Nähe des Bildschirms kommt. */
 export default function LandingModel() {

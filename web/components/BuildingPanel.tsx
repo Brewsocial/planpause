@@ -1,10 +1,9 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { api, download, fmt, type Building } from "@/lib/api";
 
-const ModelView = dynamic(() => import("@/components/ModelView"), { ssr: false, loading: () => <p className="muted">3D-Ansicht wird geladen …</p> });  // three.js erst bei Bedarf
+import ModelView from "@/components/LazyModelView";
 
 type Row = { floor: string; height: string; repeat: string };
 const num = (s: string) => Number(s.replace(",", "."));

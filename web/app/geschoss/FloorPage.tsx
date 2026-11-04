@@ -1,6 +1,5 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -8,7 +7,7 @@ import { api, download } from "@/lib/api";
 import { outerCorners, PART_COLORS, place, placedBox, rotateInPlace } from "@/lib/floor";
 import type { Geometry, Placement, Result } from "@/lib/types";
 
-const ModelView = dynamic(() => import("@/components/ModelView"), { ssr: false, loading: () => <p className="muted">3D-Ansicht wird geladen …</p> });  // three.js erst bei Bedarf
+import ModelView from "@/components/LazyModelView";
 
 interface Part { id: string; label: string; geom: Geometry; place: Placement; color: string }
 type Drag =

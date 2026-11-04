@@ -1,6 +1,5 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import PlanView from "@/components/PlanView";
@@ -10,7 +9,7 @@ import { Waiver, usePrivate } from "@/components/Waiver";
 import { statusBadge } from "@/lib/status";
 import type { Folder, Issue, MeasureHint, Project, Quality, Result } from "@/lib/types";
 
-const ModelView = dynamic(() => import("@/components/ModelView"), { ssr: false, loading: () => <p className="muted">3D-Ansicht wird geladen …</p> });  // three.js erst bei Bedarf
+import ModelView from "@/components/LazyModelView";
 
 const SEV_LABEL = { kritisch: "Kritisch", pruefen: "Prüfen", info: "Hinweis" } as const;
 const BASE_Q = [
