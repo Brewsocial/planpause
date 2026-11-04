@@ -44,7 +44,7 @@ export default function FloorPage() {
         setName(folder.name);
         const loaded = await Promise.all(layout.parts.map(async (lp, i) => {
           const pr = await api.get(lp.id);
-          return { id: lp.id, label: lp.label, geom: (pr.result as Result).geometry, place: { dx: lp.dx, dy: lp.dy, rot: lp.rot },
+          return { id: lp.id, label: lp.label, geom: (pr.result as Result).geometry, place: { dx: lp.dx, dy: lp.dy, rot: lp.rot, dz: lp.dz ?? 0 },
                    color: PART_COLORS[i % PART_COLORS.length] };
         }));
         setParts(loaded);
@@ -204,6 +204,8 @@ export default function FloorPage() {
                   <button className="btn small" onClick={() => update(p.id, (x) => rotateInPlace(x.geom, x.place))}>↻ 90°</button>
                   <label>x <input inputMode="decimal" value={Math.round(p.place.dx)} onChange={(e) => update(p.id, (x) => ({ ...x.place, dx: +e.target.value || 0 }))} /></label>
                   <label>y <input inputMode="decimal" value={Math.round(p.place.dy)} onChange={(e) => update(p.id, (x) => ({ ...x.place, dy: +e.target.value || 0 }))} /></label>
+                  <label title="Höhenversatz in cm, z. B. bei versetzten Geschossen">Höhe <input inputMode="decimal" defaultValue={String(p.place.dz ?? 0).replace(".", ",")}
+                    onChange={(e) => { const v = Number(e.target.value.replace(",", ".")); if (isFinite(v)) update(p.id, (x) => ({ ...x.place, dz: v })); }} /></label>
                   <Link className="hint" href={`/grundriss?id=${p.id}`}>Grundriss öffnen</Link>
                 </div>
               </div>
@@ -221,7 +223,7 @@ export default function FloorPage() {
           {show3d && <ModelView key={version} path={`/folders/${fid}/floors/${encodeURIComponent(floor)}/model`} height={height} />}
           {err && <p className="err" style={{ margin: 0 }}>{err}</p>}
           <p className="hint" style={{ margin: 0 }}>
-            Tipp: Zeichnungen ziehen, bis sie einrasten, danach mit x/y in cm feinjustieren. DXF und IFC enthalten alle Zeichnungen dieses Geschosses in ihrer Lage.
+            Tipp: Zeichnungen ziehen, bis sie einrasten, danach mit x/y in cm feinjustieren. „Höhe“ versetzt eine Zeichnung in cm nach oben oder unten, etwa bei Häusern mit versetzten Geschossen (wirkt im 3D-Modell und im IFC). DXF und IFC enthalten alle Zeichnungen dieses Geschosses in ihrer Lage.
           </p>
         </section>
       </div>

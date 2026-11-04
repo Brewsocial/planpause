@@ -102,7 +102,7 @@ def default_layout(sizes: list[tuple[float, float]], gap: float = 150.0) -> list
 def combine(parts: list[dict]) -> dict:
     """Setzt Teile zu einem Geschoss zusammen.
 
-    parts: [{"id", "label", "geometry", "dx", "dy", "rot"}]. Jedes Element des Ergebnisses trägt "part" (die id),
+    parts: [{"id", "label", "geometry", "dx", "dy", "rot", "dz" (Höhenversatz in cm, optional)}]. Jedes Element des Ergebnisses trägt "part" (die id),
     damit Anzeige und Export die Teile unterscheiden können.
     """
     merged = {"walls": [], "openings": [], "features": [], "rooms": [], "zones": [], "chains": [], "lines": {"x": [], "y": []}}
@@ -110,12 +110,12 @@ def combine(parts: list[dict]) -> dict:
     for p in parts:
         g = transform_geometry(p["geometry"], p.get("dx", 0.0), p.get("dy", 0.0), p.get("rot", 0))
         for key in ("walls", "openings", "features", "rooms", "zones"):
-            merged[key] += [{**e, "part": p["id"]} for e in g[key]]
+            merged[key] += [{**e, "part": p["id"], **({"dz": p["dz"]} if p.get("dz") else {})} for e in g[key]]
         merged["chains"] += [{**c, "id": f"{p['id']}:{c['id']}", "part": p["id"]} for c in g["chains"]]
         for ax in ("x", "y"):
             merged["lines"][ax] += [{**l, "id": f"{p['id']}:{l['id']}", "part": p["id"]} for l in g["lines"][ax]]
         meta.append({"id": p["id"], "label": p.get("label", ""), "bbox": g["bbox"],
-                     "dx": p.get("dx", 0.0), "dy": p.get("dy", 0.0), "rot": p.get("rot", 0)})
+                     "dx": p.get("dx", 0.0), "dy": p.get("dy", 0.0), "rot": p.get("rot", 0), "dz": p.get("dz", 0.0)})
     merged["bbox"] = bbox_of(merged) if merged["walls"] else [0, 0, 0, 0]
     merged["parts"] = meta
     return merged

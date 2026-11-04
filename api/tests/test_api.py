@@ -323,3 +323,31 @@ def test_verbraucher_muessen_vorzeitigem_beginn_zustimmen(client, monkeypatch):
 
 def test_registrierung_nur_mit_supabase(client):
     assert client.post("/signup", json={"email": "a@b.de", "password": "geheim123", "company": "X GmbH", "business": True, "terms": True}).status_code == 501
+
+
+def test_gebaeude_in_3d_geschosse_stapeln(client):
+    fid = client.post("/folders", headers=H, json={"name": "Punkthaus"}).json()["id"]
+    a = client.post(f"/projects/demo/bungalow?folder_id={fid}", headers=H).json()
+    b = client.post(f"/projects/demo/darmstaedter14?folder_id={fid}", headers=H).json()
+    client.patch(f"/projects/{b['id']}", headers=H, json={"floor": "KG"})
+
+    first = client.get(f"/folders/{fid}/building", headers=H).json()
+    assert [r["floor"] for r in first["floors"]] == ["KG", "EG"] and all(r["assumed"] for r in first["floors"])
+    b3 = client.put(f"/folders/{fid}/building", headers=H, json={"floors": {"KG": {"height": 250}, "EG": {"height": 280, "repeat": 3}}}).json()
+    assert [(r["floor"], r["elevation"]) for r in b3["floors"]] == [("KG", -250), ("EG", 0)] and b3["top"] == 840
+    assert client.put(f"/folders/{fid}/building", headers=H, json={"floors": {"EG": {"height": 50}}}).status_code == 422
+
+    # versetzter Gebäudeteil: der Bungalow liegt 1,375 m höher
+    client.patch(f"/folders/{fid}", headers=H, json={"assembly": {"EG": {a["id"]: {"dx": 0, "dy": 0, "rot": 0, "dz": 137.5}}}})
+    meshes = client.get(f"/folders/{fid}/building/model", headers=H).json()
+    assert {m["storey"] for m in meshes} == {"KG", "EG 1", "EG 2", "EG 3"}
+    walls = [min(m["verts"][2::3]) for m in meshes if m["storey"] == "EG 2" and m["type"] == "IfcWall"]
+    assert abs(min(walls) - 4.175) < 0.01  # 2,80 + 1,375
+    roofs = [m for m in meshes if m["type"] == "IfcSlab" and m["kind"] == "ROOF"]
+    assert roofs and all(m["storey"] == "EG 3" for m in roofs)
+    assert any(m["type"] == "IfcSlab" and m["kind"] == "FLOOR" and m["storey"] == "KG" for m in meshes)
+    assert {m["kind"] for m in meshes if m["type"] == "IfcWall"} == {"aussen", "innen"}
+
+    ifc = client.get(f"/folders/{fid}/building/export/ifc", headers=H)
+    assert ifc.status_code == 200 and "Punkthaus_gebaeude.ifc" in ifc.headers["content-disposition"]
+    assert ifc.content.count(b"IFCBUILDINGSTOREY(") == 4

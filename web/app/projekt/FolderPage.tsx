@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import PdfSetup, { type Crop } from "@/components/PdfSetup";
 import PhotoPicker, { PhotoTips } from "@/components/PhotoPicker";
+import BuildingPanel from "@/components/BuildingPanel";
 import PlanCard from "@/components/PlanCard";
 import { Waiver, usePrivate } from "@/components/Waiver";
 import { api } from "@/lib/api";
@@ -138,6 +139,8 @@ export default function FolderPage() {
           </section>
         );
       })}
+
+      <BuildingPanel folderId={id} name={folder.name} ready={plans.filter((p) => p.status === "analysiert").length} />
     </main>
   );
 }

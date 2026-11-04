@@ -19,7 +19,7 @@ from typing import Literal
 from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, Header, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from planpause_engine.export import to_dxf, to_report
 from planpause_engine.ifc import to_ifc, to_meshes
@@ -324,6 +324,7 @@ class Placement(BaseModel):
     dx: float = 0.0
     dy: float = 0.0
     rot: Literal[0, 90, 180, 270] = 0
+    dz: float = Field(0.0, ge=-1000, le=1000)  # Höhenversatz des Teils in cm (versetzte Geschosse)
 
 
 class FolderPatch(BaseModel):
@@ -429,6 +430,103 @@ def floor_ifc(fid: str, floor: str, height: float = Query(250, ge=180, le=600), 
     f = _folder(o, fid)
     data = to_ifc([{"name": floor, "geometry": _floor_geometry(o, fid, floor)}], f"{f['name']} – {floor}", height)
     return Response(data, media_type="application/x-step", headers={"Content-Disposition": f'attachment; filename="{_slug(f["name"])}_{_slug(floor)}.ifc"'})
+
+
+# ------------------------------------------------------------------ Gebäude in 3D
+# Die Geschosse eines Projekts übereinander: Geschosshöhe (Fußboden bis Fußboden, z. B. aus dem Schnitt) und Anzahl
+# baugleicher Geschosse je Geschoss. Das Erdgeschoss liegt auf ±0, darunter liegende Geschosse nach unten.
+
+DEFAULT_STOREY = 275.0  # cm, wenn der Nutzer nichts angibt
+BUILDING_SLAB = 20.0
+
+
+class StoreyIn(BaseModel):
+    height: float = Field(DEFAULT_STOREY, ge=200, le=800)  # cm, Fußboden bis Fußboden
+    repeat: int = Field(1, ge=1, le=40)
+
+
+class BuildingIn(BaseModel):
+    floors: dict[str, StoreyIn] = {}
+    roof: bool = True
+
+
+def _building(o: str, fid: str) -> dict:
+    """Stapel der Geschosse mit Höhenlagen (cm). Nur Geschosse mit analysiertem Grundriss."""
+    f = _folder(o, fid)
+    saved = f.get("building") or {}
+    have = {p.get("floor") or "EG" for p in _plans(o) if p.get("folder_id") == fid and p.get("status") == "analysiert"}
+    rank = lambda fl: (FLOORS.index(fl) if fl in FLOORS else 99, fl)  # noqa: E731
+    order = sorted(have, key=rank)
+    rows = []
+    for fl in order:
+        s = (saved.get("floors") or {}).get(fl)
+        rows.append({"floor": fl, "height": float(s["height"]) if s else DEFAULT_STOREY, "repeat": int(s["repeat"]) if s else 1,
+                     "assumed": not s})
+    below = [r for r in rows if rank(r["floor"]) < rank("EG")] if "EG" in have else []
+    z = -sum(r["height"] * r["repeat"] for r in below)
+    for r in rows:
+        r["elevation"] = round(z, 1)
+        z += r["height"] * r["repeat"]
+    return {"floors": rows, "roof": saved.get("roof", True), "top": round(z, 1)}
+
+
+@app.get("/folders/{fid}/building")
+def get_building(fid: str, o: str = Depends(org)):
+    return _building(o, fid)
+
+
+@app.put("/folders/{fid}/building")
+def put_building(fid: str, body: BuildingIn, o: str = Depends(org)):
+    _folder(o, fid)
+    store.update_meta(o, fid, building={"floors": {_clean(k, 20): v.model_dump() for k, v in body.floors.items()}, "roof": body.roof})
+    return _building(o, fid)
+
+
+def _storeys(o: str, fid: str) -> list[dict]:
+    """Geschosse für das IFC-Modell; baugleiche Geschosse einzeln, oberstes mit Dach."""
+    b = _building(o, fid)
+    if not b["floors"]:
+        raise HTTPException(404, "In diesem Projekt gibt es noch keinen analysierten Grundriss.")
+    out = []
+    for r in b["floors"]:
+        g = _floor_geometry(o, fid, r["floor"])
+        for k in range(r["repeat"]):
+            out.append({"name": r["floor"] if r["repeat"] == 1 else f"{r['floor']} {k + 1}", "floor": r["floor"], "geometry": g,
+                        "elevation": r["elevation"] + k * r["height"], "height": r["height"] - BUILDING_SLAB,
+                        "slab": BUILDING_SLAB, "assumed": r["assumed"]})
+    out[-1]["roof"] = b["roof"]
+    return out
+
+
+_MESH_CACHE: dict[str, list] = {}
+
+
+@app.get("/folders/{fid}/building/model")
+def building_model(fid: str, o: str = Depends(org)):
+    """3D-Ansicht des Gebäudes. Baugleiche Geschosse werden nur einmal trianguliert und dann verschoben."""
+    f = _folder(o, fid)
+    out = []
+    for st in _storeys(o, fid):
+        one = {**st, "elevation": 0.0}
+        key = json.dumps([o, fid, st["floor"], st["height"], st.get("roof", False), f.get("assembly", {}).get(st["floor"]),
+                          sorted((p["id"], p.get("updated", 0)) for p in _plans(o) if p.get("folder_id") == fid)], default=str)
+        if key not in _MESH_CACHE:
+            if len(_MESH_CACHE) > 64:
+                _MESH_CACHE.clear()
+            _MESH_CACHE[key] = to_meshes(to_ifc([one], f["name"]))
+        dz = st["elevation"] / 100.0
+        for m in _MESH_CACHE[key]:
+            v = list(m["verts"])
+            v[2::3] = [round(z + dz, 3) for z in v[2::3]]
+            out.append({**m, "verts": v, "storey": st["name"]})
+    return out
+
+
+@app.get("/folders/{fid}/building/export/ifc")
+def building_ifc(fid: str, o: str = Depends(org)):
+    f = _folder(o, fid)
+    data = to_ifc(_storeys(o, fid), f["name"])
+    return Response(data, media_type="application/x-step", headers={"Content-Disposition": f'attachment; filename="{_slug(f["name"])}_gebaeude.ifc"'})
 
 
 def _save_plan(o: str, pid: str, plan: PlanModel) -> dict:

@@ -29,14 +29,20 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
 const json = (body: unknown): RequestInit => ({ body: JSON.stringify(body), headers: { "Content-Type": "application/json" } });
 
 /** Bauteil des IFC-Modells als Dreiecksnetz (m, z nach oben), siehe /projects/{id}/model. */
-export type ModelMesh = { type: string; name: string; storey: string; estimated: boolean; verts: number[]; faces: number[] };
+export type ModelMesh = { type: string; name: string; storey: string; kind: string; estimated: boolean; verts: number[]; faces: number[] };
+/** Gebäude aus den Geschossen eines Projekts: Geschosshöhe und Höhenlage in cm */
+export type BuildingFloor = { floor: string; height: number; repeat: number; elevation: number; assumed: boolean };
+export type Building = { floors: BuildingFloor[]; roof: boolean; top: number };
 
 export const api = {
   health: () => call<{ ok: boolean; claude: boolean }>("/health"),
   me: () => call<{ org: string; name: string; trial_left: number | null; private: boolean; contact: string }>("/me"),
   signup: (body: { company: string; email: string; password: string; business: boolean; terms: boolean }) =>
     call<{ org: string; trial_left: number }>("/signup", { method: "POST", ...json(body) }),
-  model: (path: string, height: number) => call<ModelMesh[]>(`${path}?height=${Math.round(height * 100)}`),
+  model: (path: string, height?: number) => call<ModelMesh[]>(height === undefined ? path : `${path}?height=${Math.round(height * 100)}`),
+  building: (id: string) => call<Building>(`/folders/${id}/building`),
+  saveBuilding: (id: string, b: { floors: Record<string, { height: number; repeat: number }>; roof: boolean }) =>
+    call<Building>(`/folders/${id}/building`, { method: "PUT", ...json(b) }),
   list: () => call<Meta[]>("/projects"),
   get: (id: string) => call<Project>(`/projects/${id}`),
   demo: (name: "bungalow" | "darmstaedter14", folderId = "") =>
