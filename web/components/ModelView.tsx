@@ -139,7 +139,7 @@ export default function ModelView({ path, height, src, compact }: { path?: strin
     const aspect = el.clientWidth / Math.max(1, el.clientHeight);
     const vfov = THREE.MathUtils.degToRad(40);
     const hfov = 2 * Math.atan(Math.tan(vfov / 2) * aspect);
-    const dist = (size / 2) / Math.sin(Math.min(vfov, hfov) / 2) * 0.92;  // Kugel ist großzügig: etwas näher heran
+    const dist = (size / 2) / Math.sin(Math.min(vfov, hfov) / 2) * 1.0;  // ganze Hüllkugel, damit auch hohe Gebäude samt Dach ins Bild passen
     const camera = new THREE.PerspectiveCamera(40, aspect, size / 200, size * 20);
     camera.position.copy(center).add(new THREE.Vector3(-0.45, 0.75, 0.85).normalize().multiplyScalar(dist));
     const controls = new OrbitControls(camera, renderer.domElement);
