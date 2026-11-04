@@ -10,16 +10,22 @@ const LABEL: Record<string, string> = {
   IfcColumn: "Stütze", IfcChimney: "Schornstein", IfcBuildingElementProxy: "Bauteil",
 };
 // Materialfarben wie in einem Architekturmodell: Putz, Beton, Glas, Holz, Kies, Ziegel
-const PUTZ = 0xefeae2, INNEN = 0xf7f6f3, BETON = 0xb5b3ad, GLAS = 0x2f3d4b, HOLZ = 0x9a6b45, KIES = 0x7a7c79, ZIEGEL = 0x8c5640;
+const PUTZ = 0xefeae2, INNEN = 0xf7f6f3, BETON = 0xb5b3ad, GLAS = 0x2f3d4b, HOLZ = 0x9a6b45, KIES = 0x7a7c79, ZIEGEL = 0x8c5640,
+  SOCKEL = 0x8d8a84, LOGGIA = 0xb9774f;
 const ESTIMATED = 0xf0b45a;
 
 function look(m: ModelMesh): { color: number; rough: number; metal: number } {
   if (m.type === "IfcWindow") return { color: GLAS, rough: 0.25, metal: 0.35 };
-  if (m.type === "IfcDoor") return { color: m.kind === "GATE" ? BETON : HOLZ, rough: 0.7, metal: 0 };
+  if (m.type === "IfcDoor") return m.name === "Fenstertür" ? { color: GLAS, rough: 0.25, metal: 0.35 } : { color: m.kind === "GATE" ? BETON : HOLZ, rough: 0.7, metal: 0 };
   if (m.type === "IfcSlab") return { color: m.kind === "ROOF" ? KIES : BETON, rough: 0.95, metal: 0 };
   if (m.type === "IfcChimney") return { color: ZIEGEL, rough: 0.9, metal: 0 };
   if (m.type === "IfcStair" || m.type === "IfcColumn") return { color: BETON, rough: 0.9, metal: 0 };
-  if (m.type === "IfcWall") return { color: m.name === "Attika" ? BETON : m.kind === "innen" ? INNEN : PUTZ, rough: 0.92, metal: 0 };
+  if (m.type === "IfcWall") {
+    const n = m.name;
+    const color = n.startsWith("Loggia Rück") || n.startsWith("Loggia Seite") ? LOGGIA : n === "Attika" || n.includes("Brüstung") ? BETON
+      : n.includes("Sockel") ? SOCKEL : m.kind === "innen" ? INNEN : PUTZ;
+    return { color, rough: 0.92, metal: 0 };
+  }
   return { color: 0xc9c7c1, rough: 0.9, metal: 0 };
 }
 
@@ -29,8 +35,10 @@ const zmin = (m: ModelMesh) => { let z = Infinity; for (let i = 2; i < m.verts.l
  * 3D-Ansicht des IFC-Bestandsmodells. Die API rechnet das Modell in Dreiecke um (dasselbe Modell wie beim
  * IFC-Download), hier wird es nur angezeigt. Drehen mit einem Finger, zoomen mit zwei, verschieben mit rechts/zwei Fingern.
  * height: lichte Raumhöhe in m (nur bei Grundriss und Geschoss; das Gebäude hat eigene Geschosshöhen).
+ * src: statt path eine öffentliche Datei mit fertigen Dreiecksnetzen (Beispielmodell der Startseite); compact blendet
+ * die Schalter für Räume und geschätzte Teile aus.
  */
-export default function ModelView({ path, height }: { path: string; height?: number }) {
+export default function ModelView({ path, height, src, compact }: { path?: string; height?: number; src?: string; compact?: boolean }) {
   const box = useRef<HTMLDivElement>(null);
   const [meshes, setMeshes] = useState<ModelMesh[] | null>(null);
   const [err, setErr] = useState("");
@@ -41,9 +49,10 @@ export default function ModelView({ path, height }: { path: string; height?: num
 
   useEffect(() => {  // Raumhöhe ändert das Modell: kurz warten, dann neu laden
     setErr("");
-    const t = setTimeout(() => api.model(path, height).then(setMeshes).catch((e) => setErr(e.message)), 350);
+    const load = src ? () => fetch(src).then((r) => r.json() as Promise<ModelMesh[]>) : () => api.model(path ?? "", height);
+    const t = setTimeout(() => load().then(setMeshes).catch((e) => setErr(e.message)), src ? 0 : 350);
     return () => clearTimeout(t);
-  }, [path, height]);
+  }, [path, height, src]);
 
   // Geschosse von unten nach oben, für „Geschosse bis …“
   const storeys = useMemo(() => {
@@ -195,8 +204,10 @@ export default function ModelView({ path, height }: { path: string; height?: num
               {storeys.map((s, i) => <option key={s} value={i}>{s}</option>)}
             </select>
           </label>)}
-        <label className="check"><input type="checkbox" checked={rooms} onChange={(e) => setRooms(e.target.checked)} /> Räume zeigen</label>
-        <label className="check"><input type="checkbox" checked={estimated} onChange={(e) => setEstimated(e.target.checked)} /> Geschätzte Teile <i className="model3d-dot" /></label>
+        {!compact && <>
+          <label className="check"><input type="checkbox" checked={rooms} onChange={(e) => setRooms(e.target.checked)} /> Räume zeigen</label>
+          <label className="check"><input type="checkbox" checked={estimated} onChange={(e) => setEstimated(e.target.checked)} /> Geschätzte Teile <i className="model3d-dot" /></label>
+        </>}
         <span className="hint">Ziehen dreht, zwei Finger oder Mausrad zoomen. Antippen zeigt das Bauteil.</span>
       </div>
     </div>

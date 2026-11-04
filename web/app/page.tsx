@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import LandingModel from "@/components/LandingModel";
 import { CadPlan, PaperPlan } from "@/components/PlanSketch";
 import { SITE_URL } from "@/lib/site";
 
@@ -45,7 +46,9 @@ const FAQ: [string, string][] = [
   ["Was passiert, wenn Maße im Plan nicht zusammenpassen?",
     "Widersprüchliche Maßketten werden erkannt und im Ergebnis markiert, statt still übernommen zu werden. Du siehst genau, welche Stelle du vor Ort nachmessen solltest."],
   ["In welchem Format bekomme ich den Grundriss?",
-    "Als DXF in Millimetern, mit getrennten Layern für Wände, Fenster, Türen, Räume mit Fläche, Bemaßung und Prüfpunkte. DXF öffnen alle gängigen CAD-Programme, etwa AutoCAD, BricsCAD, ArchiCAD, Vectorworks oder DraftSight."],
+    "Als DXF in Millimetern, mit getrennten Layern für Wände, Fenster, Türen, Räume mit Fläche, Bemaßung und Prüfpunkte. DXF öffnen alle gängigen CAD-Programme, etwa AutoCAD, BricsCAD, ArchiCAD, Vectorworks oder DraftSight. Zusätzlich gibt es jeden Grundriss, jedes Geschoss und das ganze Gebäude als IFC-Modell für BIM-Programme."],
+  ["Woher kommen die Höhen im 3D-Modell?",
+    "Grundrisse enthalten meist keine Höhen. Geschosshöhen trägst du ein, etwa aus dem Schnitt; Fenster- und Türhöhen übernimmt Planpause, wo der Plan sie nennt. Alles andere ist angenommen und im IFC an jedem Bauteil als angenommen gekennzeichnet."],
   ["Mein Gebäude ist auf mehrere Zeichnungen verteilt. Geht das?",
     "Ja. Ein Projekt fasst alle Pläne eines Gebäudes zusammen. Mehrere Zeichnungen desselben Geschosses, etwa Altbau und Anbau, schiebst du einfach aneinander. Sie rasten an den Außenecken ein und lassen sich als ein gemeinsames DXF exportieren."],
   ["Was kostet ein Grundriss?",
@@ -177,6 +180,25 @@ export default function Landing() {
           <li><b>Auch ohne Maße.</b> Fehlt die Bemaßung, liefert Planpause trotzdem eine Zeichnung und sagt dir deutlich, dass der Maßstab geschätzt ist.</li>
           <li><b>Am Handy nutzbar.</b> Plan fotografieren, hochladen, später am Rechner als DXF weiterverarbeiten.</li>
         </ul>
+      </section>
+
+      <section className="lp-sec" id="3d">
+        <div className="lp-sec-hd">
+          <p className="lp-kicker">Neu: 3D und IFC</p>
+          <h2>Aus Grundrissen wird ein Gebäudemodell.</h2>
+          <p className="lead">
+            Planpause stapelt die Geschosse eines Projekts zu einem 3D-Modell mit Wänden, Öffnungen, Decken und Dach und gibt
+            es als IFC für BIM-Programme aus. Geschosshöhen trägst du aus dem Schnitt ein, baugleiche Geschosse zählst du einfach mit.
+            Auch Gebäudeteile, die eine halbe Geschosshöhe versetzt liegen, lassen sich abbilden.
+          </p>
+        </div>
+        <figure className="lp-3d">
+          <LandingModel />
+          <figcaption className="hint">
+            Beispiel: Punkthaus von 1965, aufgebaut aus Schnitt und Dachaufsicht, mit zwei um 1,375 m versetzten Haushälften.
+            Fenster und Loggientiefe sind in diesem Beispiel angenommen.
+          </figcaption>
+        </figure>
       </section>
 
       <section className="lp-sec" id="preise">

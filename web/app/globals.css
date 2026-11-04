@@ -375,3 +375,8 @@ footer.foot a { color: var(--muted) }
 .building-table td.num { font-family: ui-monospace, Menlo, monospace; font-size: 14px }
 .building-table .unit { display: inline-flex; align-items: center; gap: 6px; color: var(--muted) }
 .building-table .unit input { width: 64px; font: inherit; color: var(--ink); padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--sheet) }
+
+/* Startseite: Beispielmodell in 3D */
+.lp-3d { margin: 0; display: grid; gap: 10px; min-width: 0 }
+.lp-3d figcaption { max-width: 760px }
+.lp-model .model3d-view { height: min(72vh, 620px, 125vw) }
