@@ -3,6 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
+import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
+import { GTAOPass } from "three/examples/jsm/postprocessing/GTAOPass.js";
+import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
+import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { api, type ModelMesh } from "@/lib/api";
 
 const LABEL: Record<string, string> = {
@@ -13,10 +18,27 @@ const LABEL: Record<string, string> = {
 const PUTZ = 0xefeae2, INNEN = 0xf7f6f3, BETON = 0xb5b3ad, GLAS = 0x2f3d4b, HOLZ = 0x9a6b45, KIES = 0x7a7c79, ZIEGEL = 0x8c5640,
   SOCKEL = 0x8d8a84, LOGGIA = 0xb9774f;
 const ESTIMATED = 0xf0b45a;
+// Weißmodell: alles in einem warmen Weiß wie ein Arbeitsmodell aus Karton, nur Glas leicht abgesetzt
+const WEISS = 0xf4f3ef, WEISS_GLAS = 0xb9c4cc;
+type Style = "material" | "weiss";
+
+/** Himmel als Verlauf: oben kräftiger, zum Horizont hell und dunstig (dort geht der Nebel über). */
+function skyTexture(dark: boolean): { tex: THREE.CanvasTexture; horizon: THREE.Color } {
+  const top = dark ? "#1b2230" : "#b9cbde", horizon = dark ? "#3b4048" : "#eceeec";
+  const c = document.createElement("canvas");
+  c.width = 2; c.height = 256;
+  const g = c.getContext("2d")!;
+  const grad = g.createLinearGradient(0, 0, 0, 256);
+  grad.addColorStop(0, top); grad.addColorStop(0.75, horizon); grad.addColorStop(1, horizon);
+  g.fillStyle = grad; g.fillRect(0, 0, 2, 256);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return { tex, horizon: new THREE.Color(horizon) };
+}
 
 function look(m: ModelMesh): { color: number; rough: number; metal: number } {
-  if (m.type === "IfcWindow") return { color: GLAS, rough: 0.25, metal: 0.35 };
-  if (m.type === "IfcDoor") return m.name === "Fenstertür" ? { color: GLAS, rough: 0.25, metal: 0.35 } : { color: m.kind === "GATE" ? BETON : HOLZ, rough: 0.7, metal: 0 };
+  if (m.type === "IfcWindow") return { color: GLAS, rough: 0.06, metal: 0.2 };
+  if (m.type === "IfcDoor") return m.name === "Fenstertür" ? { color: GLAS, rough: 0.06, metal: 0.2 } : { color: m.kind === "GATE" ? BETON : HOLZ, rough: 0.7, metal: 0 };
   if (m.type === "IfcSlab") return { color: m.kind === "ROOF" ? KIES : BETON, rough: 0.95, metal: 0 };
   if (m.type === "IfcChimney") return { color: ZIEGEL, rough: 0.9, metal: 0 };
   if (m.type === "IfcStair" || m.type === "IfcColumn") return { color: BETON, rough: 0.9, metal: 0 };
@@ -46,6 +68,7 @@ export default function ModelView({ path, height, src, compact }: { path?: strin
   const [estimated, setEstimated] = useState(false);
   const [picked, setPicked] = useState("");
   const [upTo, setUpTo] = useState(-1);  // oberstes sichtbares Geschoss (Index), -1 = alle
+  const [style, setStyle] = useState<Style>("material");
 
   useEffect(() => {  // Raumhöhe ändert das Modell: kurz warten, dann neu laden
     setErr("");
@@ -65,17 +88,25 @@ export default function ModelView({ path, height, src, compact }: { path?: strin
   useEffect(() => {
     const el = box.current;
     if (!el || !meshes) return;
-    const sky = new THREE.Color(getComputedStyle(el).backgroundColor);
-    const dark = sky.getHSL({ h: 0, s: 0, l: 0 }).l < 0.4;
+    const dark = new THREE.Color(getComputedStyle(el).backgroundColor).getHSL({ h: 0, s: 0, l: 0 }).l < 0.4;
+    const white = style === "weiss";
+    const coarse = window.matchMedia("(pointer: coarse)").matches;  // Handy/Tablet: etwas sparsamer rechnen
     const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, coarse ? 1.5 : 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = white ? 1.1 : 1.0;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     el.appendChild(renderer.domElement);
     const scene = new THREE.Scene();
-    scene.background = sky;
-    scene.add(new THREE.HemisphereLight(0xf3f6ff, 0x8f8a7e, dark ? 1.3 : 1.6));
+    const { tex: skyTex, horizon } = skyTexture(dark);
+    scene.background = skyTex;
+    // Umgebungslicht aus einem neutralen Raum: weiche Aufhellung und Spiegelungen im Glas
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    const env = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    scene.environment = env;
+    scene.environmentIntensity = white ? 0.45 : 0.3;
+    scene.add(new THREE.HemisphereLight(0xf3f6ff, 0x8f8a7e, dark ? 0.45 : 0.55));
 
     const visible = new Set(upTo < 0 ? storeys : storeys.slice(0, upTo + 1));
     const model = new THREE.Group();
@@ -89,9 +120,11 @@ export default function ModelView({ path, height, src, compact }: { path?: strin
       geo.setIndex(m.faces);
       geo.computeVertexNormals();
       const space = m.type === "IfcSpace";
+      const glass = m.type === "IfcWindow" || (m.type === "IfcDoor" && m.name === "Fenstertür");
       const l = look(m);
+      const color = space ? 0x0071e3 : estimated && m.estimated ? ESTIMATED : white ? (glass ? WEISS_GLAS : WEISS) : l.color;
       const mat = new THREE.MeshStandardMaterial({
-        color: space ? 0x0071e3 : estimated && m.estimated ? ESTIMATED : l.color, roughness: l.rough, metalness: l.metal,
+        color, roughness: white && !glass ? 0.95 : l.rough, metalness: white ? 0 : l.metal, envMapIntensity: glass ? 1.4 : 1,
         side: THREE.DoubleSide, transparent: space, opacity: space ? 0.14 : 1,
         depthWrite: !space, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1,
       });
@@ -101,36 +134,36 @@ export default function ModelView({ path, height, src, compact }: { path?: strin
       mesh.userData = m;
       model.add(mesh);
       if (!space || rooms) pickable.push(mesh);
-      if (!space && m.type !== "IfcWindow") {
+      if (!space && !glass) {
         const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo, 25),
-          new THREE.LineBasicMaterial({ color: 0x3a3c42, transparent: true, opacity: 0.18 }));
+          new THREE.LineBasicMaterial({ color: 0x3a3c42, transparent: true, opacity: white ? 0.28 : 0.1 }));
         model.add(edges);
       }
     }
     scene.add(model);
 
-    // Kamera auf das Modell ausrichten: schräg von vorne oben
     const bb = new THREE.Box3().setFromObject(model);
     const center = bb.getCenter(new THREE.Vector3());
     const size = bb.getSize(new THREE.Vector3()).length() || 10;
 
     // Boden mit Schlagschatten, Horizont läuft im Dunst aus
     const ground = new THREE.Mesh(new THREE.CircleGeometry(size * 20, 64),
-      new THREE.MeshStandardMaterial({ color: dark ? 0x3a3d3a : 0xd9dcd3, roughness: 1 }));
+      new THREE.MeshStandardMaterial({ color: white ? 0xe4e2dc : dark ? 0x3a3d3a : 0xd3d6cb, roughness: 1, envMapIntensity: 0.4 }));
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = bb.min.y - 0.01;
     ground.receiveShadow = true;
     scene.add(ground);
-    scene.fog = new THREE.Fog(sky, size * 3, size * 10);
+    scene.fog = new THREE.Fog(horizon, size * 2.5, size * 9);
 
     // Sonne aus Südost: Westseite im Schatten, Schatten fällt sichtbar neben das Gebäude
-    const sun = new THREE.DirectionalLight(0xfff3e2, dark ? 2.0 : 2.4);
+    const sun = new THREE.DirectionalLight(0xfff1dc, dark ? 2.2 : 2.8);
     sun.target.position.copy(center);
     sun.position.copy(center).add(new THREE.Vector3(1, 1.4, 0.9).normalize().multiplyScalar(size * 1.5));
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
     sun.shadow.bias = -0.0004;
     sun.shadow.normalBias = 0.03;
+    sun.shadow.radius = 3;
     const r = size * 0.75;
     Object.assign(sun.shadow.camera, { left: -r, right: r, top: r, bottom: -r, near: size * 0.1, far: size * 4 });
     scene.add(sun, sun.target);
@@ -141,18 +174,33 @@ export default function ModelView({ path, height, src, compact }: { path?: strin
     const hfov = 2 * Math.atan(Math.tan(vfov / 2) * aspect);
     const dist = (size / 2) / Math.sin(Math.min(vfov, hfov) / 2) * 1.0;  // ganze Hüllkugel, damit auch hohe Gebäude samt Dach ins Bild passen
     const camera = new THREE.PerspectiveCamera(40, aspect, size / 200, size * 20);
-    camera.position.copy(center).add(new THREE.Vector3(-0.45, 0.75, 0.85).normalize().multiplyScalar(dist));
+    camera.position.copy(center).add(new THREE.Vector3(-0.55, 0.5, 0.85).normalize().multiplyScalar(dist));  // leicht von oben, nah an der Augenhöhe
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.target.copy(center);
     controls.enableDamping = true;
     controls.maxPolarAngle = Math.PI * 0.49;  // nicht unter den Boden
     controls.update();
 
+    // Verschattung in Ecken, Fugen und Laibungen (Ambient Occlusion): liest sich wie ein echtes Modell.
+    // Bei eingeblendeten Räumen aus, weil die durchsichtigen Raumkörper sonst mitverschatten.
+    const composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+    const ao = new GTAOPass(scene, camera, el.clientWidth, el.clientHeight);
+    ao.updateGtaoMaterial({ radius: Math.min(1.2, size * 0.02), distanceExponent: 1, thickness: 1, scale: 1 });
+    ao.blendIntensity = 1;
+    ao.enabled = !rooms;
+    composer.addPass(ao);
+    composer.addPass(new OutputPass());
+
+    let dirty = true;  // nur rechnen, wenn sich etwas bewegt: schont Akku und Lüfter
+    controls.addEventListener("change", () => { dirty = true; });
     const resize = () => {
       const w = el.clientWidth, h = el.clientHeight;
       renderer.setSize(w, h);
+      composer.setSize(w, h);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
+      dirty = true;
     };
     resize();
     const ro = new ResizeObserver(resize);
@@ -174,7 +222,11 @@ export default function ModelView({ path, height, src, compact }: { path?: strin
     renderer.domElement.addEventListener("pointerup", onUp);
 
     let frame = 0;
-    const loop = () => { frame = requestAnimationFrame(loop); controls.update(); renderer.render(scene, camera); };
+    const loop = () => {
+      frame = requestAnimationFrame(loop);
+      controls.update();
+      if (dirty) { dirty = false; composer.render(); }
+    };
     loop();
     return () => {
       cancelAnimationFrame(frame);
@@ -184,10 +236,11 @@ export default function ModelView({ path, height, src, compact }: { path?: strin
         if (o instanceof THREE.Mesh || o instanceof THREE.LineSegments) { o.geometry.dispose(); (o.material as THREE.Material).dispose(); }
       });
       sun.shadow.map?.dispose();
+      skyTex.dispose(); env.dispose(); pmrem.dispose(); ao.dispose(); composer.dispose();
       renderer.dispose();
       renderer.domElement.remove();
     };
-  }, [meshes, rooms, estimated, upTo, storeys]);
+  }, [meshes, rooms, estimated, upTo, storeys, style]);
 
   return (
     <div className="model3d">
@@ -204,6 +257,12 @@ export default function ModelView({ path, height, src, compact }: { path?: strin
               {storeys.map((s, i) => <option key={s} value={i}>{s}</option>)}
             </select>
           </label>)}
+        <label className="check">Darstellung
+          <select value={style} onChange={(e) => setStyle(e.target.value as Style)}>
+            <option value="material">Material</option>
+            <option value="weiss">Weißmodell</option>
+          </select>
+        </label>
         {!compact && <>
           <label className="check"><input type="checkbox" checked={rooms} onChange={(e) => setRooms(e.target.checked)} /> Räume zeigen</label>
           <label className="check"><input type="checkbox" checked={estimated} onChange={(e) => setEstimated(e.target.checked)} /> Geschätzte Teile <i className="model3d-dot" /></label>
