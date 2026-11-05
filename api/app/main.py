@@ -448,6 +448,7 @@ class StoreyIn(BaseModel):
 class BuildingIn(BaseModel):
     floors: dict[str, StoreyIn] = {}
     roof: bool = True
+    north: float | None = Field(None, ge=0, lt=360)  # Grad im Uhrzeigersinn von „oben im Plan“, None = unbekannt
 
 
 def _building(o: str, fid: str) -> dict:
@@ -467,7 +468,7 @@ def _building(o: str, fid: str) -> dict:
     for r in rows:
         r["elevation"] = round(z, 1)
         z += r["height"] * r["repeat"]
-    return {"floors": rows, "roof": saved.get("roof", True), "top": round(z, 1)}
+    return {"floors": rows, "roof": saved.get("roof", True), "north": saved.get("north"), "top": round(z, 1)}
 
 
 @app.get("/folders/{fid}/building")
@@ -478,7 +479,8 @@ def get_building(fid: str, o: str = Depends(org)):
 @app.put("/folders/{fid}/building")
 def put_building(fid: str, body: BuildingIn, o: str = Depends(org)):
     _folder(o, fid)
-    store.update_meta(o, fid, building={"floors": {_clean(k, 20): v.model_dump() for k, v in body.floors.items()}, "roof": body.roof})
+    store.update_meta(o, fid, building={"floors": {_clean(k, 20): v.model_dump() for k, v in body.floors.items()},
+                                          "roof": body.roof, "north": body.north})
     return _building(o, fid)
 
 
@@ -495,6 +497,7 @@ def _storeys(o: str, fid: str) -> list[dict]:
                         "elevation": r["elevation"] + k * r["height"], "height": r["height"] - BUILDING_SLAB,
                         "slab": BUILDING_SLAB, "assumed": r["assumed"]})
     out[-1]["roof"] = b["roof"]
+    out[0]["ground"] = True  # unterste Decke liegt auf dem Erdreich
     return out
 
 
@@ -508,7 +511,7 @@ def building_model(fid: str, o: str = Depends(org)):
     out = []
     for st in _storeys(o, fid):
         one = {**st, "elevation": 0.0}
-        key = json.dumps([o, fid, st["floor"], st["height"], st.get("roof", False), f.get("assembly", {}).get(st["floor"]),
+        key = json.dumps([o, fid, st["floor"], st["height"], st.get("roof", False), st.get("ground", False), f.get("assembly", {}).get(st["floor"]),
                           sorted((p["id"], p.get("updated", 0)) for p in _plans(o) if p.get("folder_id") == fid)], default=str)
         if key not in _MESH_CACHE:
             if len(_MESH_CACHE) > 64:
@@ -525,7 +528,7 @@ def building_model(fid: str, o: str = Depends(org)):
 @app.get("/folders/{fid}/building/export/ifc")
 def building_ifc(fid: str, o: str = Depends(org)):
     f = _folder(o, fid)
-    data = to_ifc(_storeys(o, fid), f["name"])
+    data = to_ifc(_storeys(o, fid), f["name"], north=_building(o, fid)["north"])
     return Response(data, media_type="application/x-step", headers={"Content-Disposition": f'attachment; filename="{_slug(f["name"])}_gebaeude.ifc"'})
 
 

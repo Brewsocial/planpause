@@ -111,10 +111,17 @@ def _runs_vertical(r: list[float], walls: list[dict]) -> bool:
     return (y1 - y0) > (x1 - x0)
 
 
-def to_ifc(storeys: list[dict], title: str = "", height: float = 250.0) -> bytes:
+def _area(pts: list[tuple[float, float]]) -> float:
+    return abs(sum(xa * yb - xb * ya for (xa, ya), (xb, yb) in zip(pts, pts[1:] + pts[:1]))) / 2
+
+
+def to_ifc(storeys: list[dict], title: str = "", height: float = 250.0, north: float | None = None) -> bytes:
     """storeys: [{"name", "geometry", "elevation" (cm, optional), "height" (lichte Höhe in cm, optional),
-    "slab" (Deckendicke unter dem Geschoss in cm, optional), "roof" (Flachdach darüber), "assumed" (Höhe angenommen)}].
-    height = lichte Raumhöhe in cm, wenn ein Geschoss keine eigene hat (Annahme)."""
+    "slab" (Deckendicke unter dem Geschoss in cm, optional), "roof" (Flachdach darüber), "ground" (Decke ist Bodenplatte),
+    "assumed" (Höhe angenommen)}].
+    height = lichte Raumhöhe in cm, wenn ein Geschoss keine eigene hat (Annahme).
+    north = Nordrichtung in Grad im Uhrzeigersinn von „oben im Plan“ (None = unbekannt).
+    Für Energieberatungssoftware: Außen/Innen an Wänden, Fenstern, Türen und Decken, Mengen (Flächen, Höhen) je Bauteil."""
     import ifcopenshell.api as api
     import ifcopenshell.api.aggregate, ifcopenshell.api.context, ifcopenshell.api.feature  # noqa: E401,F401
     import ifcopenshell.api.geometry, ifcopenshell.api.project, ifcopenshell.api.pset  # noqa: E401,F401
@@ -125,14 +132,27 @@ def to_ifc(storeys: list[dict], title: str = "", height: float = 250.0) -> bytes
     api.unit.assign_unit(f)  # SI: Meter, Quadratmeter, Kubikmeter
     model = api.context.add_context(f, context_type="Model")
     body = api.context.add_context(f, context_type="Model", context_identifier="Body", target_view="MODEL_VIEW", parent=model)
+    if north is not None:  # Plan oben = +y im IFC
+        a = np.radians(north)
+        model.TrueNorth = f.createIfcDirection((round(float(np.sin(a)), 6), round(float(np.cos(a)), 6)))
     site = api.root.create_entity(f, ifc_class="IfcSite", name="Grundstück")
     building = api.root.create_entity(f, ifc_class="IfcBuilding", name=title or "Gebäude")
     api.aggregate.assign_object(f, products=[site], relating_object=project)
     api.aggregate.assign_object(f, products=[building], relating_object=site)
+    info = api.pset.add_pset(f, product=building, name="Planpause_Bestand")
+    api.pset.edit_pset(f, pset=info, properties={"Quelle": "Planpause: aus Maßketten eines Bestandsplans berechnet",
+                                                 "Nordrichtung": f"{north:g}° im Uhrzeigersinn von oben im Plan" if north is not None
+                                                 else "unbekannt"})
 
     def mark(el, **props):
         pset = api.pset.add_pset(f, product=el, name="Planpause_Bestand")
         api.pset.edit_pset(f, pset=pset, properties={"Quelle": "Planpause: aus Maßketten eines Bestandsplans berechnet", **props})
+
+    def common(el, cls, **props):
+        api.pset.edit_pset(f, pset=api.pset.add_pset(f, product=el, name=f"Pset_{cls}Common"), properties=props)
+
+    def qto(el, name, **props):
+        api.pset.edit_qto(f, qto=api.pset.add_qto(f, product=el, name=name), properties={k: round(v, 3) for k, v in props.items()})
 
     def place(el, rep, x, y, z, vertical=False):
         api.geometry.edit_object_placement(f, product=el, matrix=_matrix(x, y, z, vertical))
@@ -154,9 +174,13 @@ def to_ifc(storeys: list[dict], title: str = "", height: float = 250.0) -> bytes
             pts = _ccw([(_m(x), _m(-y)) for x, y in poly])
             zz = base + _m(dz)
             if st.get("slab"):
-                el = api.root.create_entity(f, ifc_class="IfcSlab", predefined_type="FLOOR", name="Decke")
+                ground = bool(st.get("ground"))
+                el = api.root.create_entity(f, ifc_class="IfcSlab", predefined_type="BASESLAB" if ground else "FLOOR",
+                                            name="Bodenplatte" if ground else "Decke")
                 rep = api.geometry.add_slab_representation(f, context=body, depth=_m(st["slab"]), polyline=pts)
                 place(el, rep, 0, 0, zz - _m(st["slab"]))
+                common(el, "Slab", IsExternal=ground)
+                qto(el, "Qto_SlabBaseQuantities", Width=_m(st["slab"]), GrossArea=_area(pts))
                 mark(el, Geschaetzt=True, HoeheAngenommen=h_assumed, Hinweis="Umriss aus den Wänden, Dicke angenommen")
                 contained.append(el)
             if st.get("roof"):
@@ -164,6 +188,8 @@ def to_ifc(storeys: list[dict], title: str = "", height: float = 250.0) -> bytes
                 el = api.root.create_entity(f, ifc_class="IfcSlab", predefined_type="ROOF", name="Flachdach")
                 rep = api.geometry.add_slab_representation(f, context=body, depth=d, polyline=pts)
                 place(el, rep, 0, 0, zz + h)
+                common(el, "Slab", IsExternal=True)
+                qto(el, "Qto_SlabBaseQuantities", Width=d, GrossArea=_area(pts))
                 mark(el, Geschaetzt=True, HoeheAngenommen=True, Hinweis="Dachform angenommen")
                 contained.append(el)
                 for (xa, ya), (xb, yb) in zip(pts, pts[1:] + pts[:1]):  # Attika entlang des Umrisses, nach innen
@@ -173,8 +199,7 @@ def to_ifc(storeys: list[dict], title: str = "", height: float = 250.0) -> bytes
                     el = api.root.create_entity(f, ifc_class="IfcWall", name="Attika")
                     rep = api.geometry.add_wall_representation(f, context=body, length=length, height=_m(PARAPET), thickness=0.25)
                     place(el, rep, xa, ya, zz + h + d, float(np.arctan2(yb - ya, xb - xa)))
-                    common = api.pset.add_pset(f, product=el, name="Pset_WallCommon")
-                    api.pset.edit_pset(f, pset=common, properties={"IsExternal": True})
+                    common(el, "Wall", IsExternal=True)
                     mark(el, Geschaetzt=True, HoeheAngenommen=True)
                     contained.append(el)
 
@@ -186,9 +211,8 @@ def to_ifc(storeys: list[dict], title: str = "", height: float = 250.0) -> bytes
             el = api.root.create_entity(f, ifc_class="IfcWall", name=name)
             rep = api.geometry.add_wall_representation(f, context=body, length=length, height=h, thickness=thick)
             place(el, rep, xb if vertical else xa, ya, z0, vertical)
-            common = api.pset.add_pset(f, product=el, name="Pset_WallCommon")
-            api.pset.edit_pset(f, pset=common, properties={"IsExternal": kind in ("aussen", "brand"),
-                                                           **({"FireRating": "Brandwand"} if kind == "brand" else {})})
+            common(el, "Wall", IsExternal=kind in ("aussen", "brand"), **({"FireRating": "Brandwand"} if kind == "brand" else {}))
+            qto(el, "Qto_WallBaseQuantities", Length=length, Width=thick, Height=h, GrossSideArea=length * h)
             mark(el, Geschaetzt=bool(estimated), HoeheAngenommen=h_assumed)
             contained.append(el)
             return {"el": el, "vertical": vertical, "thick": thick, "rect": rect, "kind": kind, "z0": z0}
@@ -245,6 +269,9 @@ def to_ifc(storeys: list[dict], title: str = "", height: float = 250.0) -> bytes
             rep = api.geometry.add_wall_representation(f, context=body, length=width, height=oh_m, thickness=pane)
             place(el, rep, px, py, z0 + sill_m, host["vertical"])
             api.feature.add_filling(f, opening=opening, element=el)
+            common(el, "Window" if kind == "window" else "Door", IsExternal=host["kind"] in ("aussen", "brand"))
+            qto(el, "Qto_WindowBaseQuantities" if kind == "window" else "Qto_DoorBaseQuantities",
+                Width=width, Height=oh_m, Area=width * oh_m)
             mark(el, Geschaetzt=bool(o.get("estimated")), HoeheAngenommen=assumed or h_assumed)
             contained.append(el)
 
@@ -273,9 +300,8 @@ def to_ifc(storeys: list[dict], title: str = "", height: float = 250.0) -> bytes
             rep = api.geometry.add_slab_representation(f, context=body, depth=h, polyline=pts)
             place(sp, rep, 0, 0, zof(r))
             if area:
-                qto = api.pset.add_qto(f, product=sp, name="Qto_SpaceBaseQuantities")
-                api.pset.edit_qto(f, qto=qto, properties={"NetFloorArea": round(area, 2), "Height": h,
-                                                          "NetVolume": round(area * h, 2)})
+                qto(sp, "Qto_SpaceBaseQuantities", NetFloorArea=area, Height=h, FinishCeilingHeight=h, NetVolume=area * h)
+            common(sp, "Space", IsExternal=False)
             mark(sp, Geschaetzt=bool(r.get("estimated")), HoeheAngenommen=h_assumed,
                  FlaecheLautPlan=r.get("area_stated") or 0.0, FlaecheAusMassen=r.get("area_geom") or 0.0)
             spaces.append(sp)

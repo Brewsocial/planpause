@@ -325,7 +325,7 @@ def test_registrierung_nur_mit_supabase(client):
     assert client.post("/signup", json={"email": "a@b.de", "password": "geheim123", "company": "X GmbH", "business": True, "terms": True}).status_code == 501
 
 
-def test_gebaeude_in_3d_geschosse_stapeln(client):
+def test_gebaeude_in_3d_geschosse_stapeln(client, tmp_path):
     fid = client.post("/folders", headers=H, json={"name": "Punkthaus"}).json()["id"]
     a = client.post(f"/projects/demo/bungalow?folder_id={fid}", headers=H).json()
     b = client.post(f"/projects/demo/darmstaedter14?folder_id={fid}", headers=H).json()
@@ -345,9 +345,26 @@ def test_gebaeude_in_3d_geschosse_stapeln(client):
     assert abs(min(walls) - 4.175) < 0.01  # 2,80 + 1,375
     roofs = [m for m in meshes if m["type"] == "IfcSlab" and m["kind"] == "ROOF"]
     assert roofs and all(m["storey"] == "EG 3" for m in roofs)
-    assert any(m["type"] == "IfcSlab" and m["kind"] == "FLOOR" and m["storey"] == "KG" for m in meshes)
+    assert any(m["type"] == "IfcSlab" and m["kind"] == "BASESLAB" and m["storey"] == "KG" for m in meshes)
+    assert any(m["type"] == "IfcSlab" and m["kind"] == "FLOOR" and m["storey"] == "EG 2" for m in meshes)
     assert {m["kind"] for m in meshes if m["type"] == "IfcWall"} == {"aussen", "innen"}
 
     ifc = client.get(f"/folders/{fid}/building/export/ifc", headers=H)
     assert ifc.status_code == 200 and "Punkthaus_gebaeude.ifc" in ifc.headers["content-disposition"]
     assert ifc.content.count(b"IFCBUILDINGSTOREY(") == 4
+
+    # für Energieberatungssoftware: Nordrichtung, Außen/Innen und Mengen an den Bauteilen
+    assert client.put(f"/folders/{fid}/building", headers=H, json={"floors": {}, "north": 400}).status_code == 422
+    assert client.put(f"/folders/{fid}/building", headers=H, json={"floors": {}, "north": 90}).json()["north"] == 90
+    import ifcopenshell, ifcopenshell.util.element as ue
+    path = tmp_path / "gebaeude.ifc"
+    path.write_bytes(client.get(f"/folders/{fid}/building/export/ifc", headers=H).content)
+    m = ifcopenshell.open(str(path))
+    ctx = next(c for c in m.by_type("IfcGeometricRepresentationContext") if not c.is_a("IfcGeometricRepresentationSubContext"))
+    assert [round(v, 3) for v in ctx.TrueNorth.DirectionRatios] == [1.0, 0.0]  # Norden zeigt im Plan nach rechts
+    win = m.by_type("IfcWindow")[0]
+    ps = ue.get_psets(win)
+    assert "IsExternal" in ps["Pset_WindowCommon"] and ps["Qto_WindowBaseQuantities"]["Area"] > 0
+    assert ue.get_psets(m.by_type("IfcWall")[0])["Qto_WallBaseQuantities"]["GrossSideArea"] > 0
+    slabs = {s.PredefinedType: ue.get_psets(s)["Pset_SlabCommon"]["IsExternal"] for s in m.by_type("IfcSlab")}
+    assert slabs == {"BASESLAB": True, "FLOOR": False, "ROOF": True}

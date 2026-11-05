@@ -7,6 +7,7 @@ import ModelView from "@/components/LazyModelView";
 
 type Row = { floor: string; height: string; repeat: string };
 const num = (s: string) => Number(s.replace(",", "."));
+const NORTH = ["oben", "oben rechts", "rechts", "unten rechts", "unten", "unten links", "links", "oben links"];
 const level = (cm: number) => (cm === 0 ? "±0,00" : `${cm > 0 ? "+" : "−"}${fmt(Math.abs(cm) / 100, 2)}`);
 
 /**
@@ -17,6 +18,7 @@ export default function BuildingPanel({ folderId, name, ready }: { folderId: str
   const [b, setB] = useState<Building | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
   const [roof, setRoof] = useState(true);
+  const [north, setNorth] = useState<number | null>(null);
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
   const [show, setShow] = useState(false);
@@ -27,6 +29,7 @@ export default function BuildingPanel({ folderId, name, ready }: { folderId: str
     setB(x);
     setRows(x.floors.map((f) => ({ floor: f.floor, height: fmt(f.height / 100, 2), repeat: String(f.repeat) })));
     setRoof(x.roof);
+    setNorth(x.north ?? null);
     setDirty(false);
   };
   useEffect(() => { if (ready) api.building(folderId).then(take).catch((e) => setErr(e.message)); }, [folderId, ready]);
@@ -41,7 +44,7 @@ export default function BuildingPanel({ folderId, name, ready }: { folderId: str
     setBusy(true); setErr("");
     try {
       take(await api.saveBuilding(folderId, {
-        roof, floors: Object.fromEntries(rows.map((r) => [r.floor, { height: Math.round(num(r.height) * 1000) / 10, repeat: +r.repeat }])),
+        roof, north, floors: Object.fromEntries(rows.map((r) => [r.floor, { height: Math.round(num(r.height) * 1000) / 10, repeat: +r.repeat }])),
       }));
       return true;
     } catch (e) { setErr((e as Error).message); return false; } finally { setBusy(false); }
@@ -86,6 +89,12 @@ export default function BuildingPanel({ folderId, name, ready }: { folderId: str
       </div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
         <label className="check"><input type="checkbox" checked={roof} onChange={(e) => { setRoof(e.target.checked); setDirty(true); }} /> Flachdach mit Attika</label>
+        <label className="check">Norden liegt im Plan
+          <select value={north ?? ""} onChange={(e) => { setNorth(e.target.value === "" ? null : +e.target.value); setDirty(true); }}>
+            <option value="">unbekannt</option>
+            {NORTH.map((t, i) => <option key={t} value={i * 45}>{t}</option>)}
+          </select>
+        </label>
         <span className="hint">{storeys} {storeys === 1 ? "Geschoss" : "Geschosse"}{!dirty && ` · Oberkante ${level(b.top)}`}</span>
       </div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -98,7 +107,8 @@ export default function BuildingPanel({ folderId, name, ready }: { folderId: str
       <p className="hint" style={{ margin: 0 }}>
         Baugleiche Geschosse (etwa 1. bis 8. OG) reicht es, einmal hochzuladen und die Anzahl zu erhöhen. Liegen Gebäudeteile
         eine halbe Geschosshöhe versetzt, trägst du das beim Zusammensetzen des Geschosses unter „Höhe“ ein. Decken, Dach und
-        nicht angegebene Höhen sind Annahmen und im IFC so gekennzeichnet.
+        nicht angegebene Höhen sind Annahmen und im IFC so gekennzeichnet. Das IFC enthält Außen- und Innenbauteile, Flächen und die
+        Nordrichtung, damit Programme zur Energieberatung die Gebäudehülle übernehmen können.
       </p>
     </section>
   );

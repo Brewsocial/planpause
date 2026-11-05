@@ -32,7 +32,7 @@ const json = (body: unknown): RequestInit => ({ body: JSON.stringify(body), head
 export type ModelMesh = { type: string; name: string; storey: string; kind: string; estimated: boolean; verts: number[]; faces: number[] };
 /** Gebäude aus den Geschossen eines Projekts: Geschosshöhe und Höhenlage in cm */
 export type BuildingFloor = { floor: string; height: number; repeat: number; elevation: number; assumed: boolean };
-export type Building = { floors: BuildingFloor[]; roof: boolean; top: number };
+export type Building = { floors: BuildingFloor[]; roof: boolean; north: number | null; top: number };
 
 export const api = {
   health: () => call<{ ok: boolean; claude: boolean }>("/health"),
@@ -41,7 +41,7 @@ export const api = {
     call<{ org: string; trial_left: number }>("/signup", { method: "POST", ...json(body) }),
   model: (path: string, height?: number) => call<ModelMesh[]>(height === undefined ? path : `${path}?height=${Math.round(height * 100)}`),
   building: (id: string) => call<Building>(`/folders/${id}/building`),
-  saveBuilding: (id: string, b: { floors: Record<string, { height: number; repeat: number }>; roof: boolean }) =>
+  saveBuilding: (id: string, b: { floors: Record<string, { height: number; repeat: number }>; roof: boolean; north: number | null }) =>
     call<Building>(`/folders/${id}/building`, { method: "PUT", ...json(b) }),
   list: () => call<Meta[]>("/projects"),
   get: (id: string) => call<Project>(`/projects/${id}`),
