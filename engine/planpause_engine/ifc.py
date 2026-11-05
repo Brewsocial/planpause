@@ -115,19 +115,31 @@ def _area(pts: list[tuple[float, float]]) -> float:
     return abs(sum(xa * yb - xb * ya for (xa, ya), (xb, yb) in zip(pts, pts[1:] + pts[:1]))) / 2
 
 
-def to_ifc(storeys: list[dict], title: str = "", height: float = 250.0, north: float | None = None) -> bytes:
+def to_ifc(storeys: list[dict], title: str = "", height: float = 250.0, north: float | None = None,
+           version: str = "IFC4") -> bytes:
     """storeys: [{"name", "geometry", "elevation" (cm, optional), "height" (lichte Höhe in cm, optional),
     "slab" (Deckendicke unter dem Geschoss in cm, optional), "roof" (Flachdach darüber), "ground" (Decke ist Bodenplatte),
     "assumed" (Höhe angenommen)}].
     height = lichte Raumhöhe in cm, wenn ein Geschoss keine eigene hat (Annahme).
     north = Nordrichtung in Grad im Uhrzeigersinn von „oben im Plan“ (None = unbekannt).
+    version = "IFC4" oder "IFC2X3" (für Programme, die nur das ältere Schema lesen, z. B. HottCAD).
     Für Energieberatungssoftware: Außen/Innen an Wänden, Fenstern, Türen und Decken, Mengen (Flächen, Höhen) je Bauteil."""
     import ifcopenshell.api as api
     import ifcopenshell.api.aggregate, ifcopenshell.api.context, ifcopenshell.api.feature  # noqa: E401,F401
     import ifcopenshell.api.geometry, ifcopenshell.api.project, ifcopenshell.api.pset  # noqa: E401,F401
     import ifcopenshell.api.root, ifcopenshell.api.spatial, ifcopenshell.api.unit  # noqa: E401,F401
 
-    f = api.project.create_file(version="IFC4")
+    f = api.project.create_file(version=version)
+    schema = __import__("ifcopenshell.ifcopenshell_wrapper", fromlist=["schema_by_name"]).schema_by_name(version)
+    if version == "IFC2X3":  # verlangt zu jedem Bauteil eine Angabe, wer es angelegt hat
+        import ifcopenshell.api.owner, ifcopenshell.api.owner.settings as owner  # noqa: E401
+        org = api.owner.add_organisation(f, identification="Planpause", name="Planpause")
+        user = api.owner.add_person_and_organisation(f, person=api.owner.add_person(f, identification="Planpause",
+                                                                                     family_name="Planpause"), organisation=org)
+        api.owner.add_application(f, application_developer=org, version="1.0", application_full_name="Planpause",
+                                  application_identifier="Planpause")
+        owner.get_user = lambda f: (f.by_type("IfcPersonAndOrganization") or [None])[0]
+        owner.get_application = lambda f: (f.by_type("IfcApplication") or [None])[0]
     project = api.root.create_entity(f, ifc_class="IfcProject", name=title or "Planpause Bestandsmodell")
     api.unit.assign_unit(f)  # SI: Meter, Quadratmeter, Kubikmeter
     model = api.context.add_context(f, context_type="Model")
@@ -261,7 +273,8 @@ def to_ifc(storeys: list[dict], title: str = "", height: float = 250.0, north: f
             if kind == "passage":
                 continue
             cls, ptype = ("IfcWindow", "WINDOW") if kind == "window" else ("IfcDoor", "GATE" if kind == "gate" else "DOOR")
-            el = api.root.create_entity(f, ifc_class=cls, predefined_type=ptype, name=LABELS[kind])
+            el = api.root.create_entity(f, ifc_class=cls, name=LABELS[kind],  # IFC2x3: Fenster und Türen ohne Typ
+                                        **({} if version == "IFC2X3" else {"predefined_type": ptype}))
             el.OverallWidth, el.OverallHeight = width, oh_m
             pane = 0.07 if kind == "window" else 0.05
             mid = (host["thick"] - pane) / 2
@@ -281,6 +294,10 @@ def to_ifc(storeys: list[dict], title: str = "", height: float = 250.0, north: f
                 continue
             key = ft["type"].lower()
             cls = next((c for k, c in FEATURES.items() if key.startswith(k)), "IfcBuildingElementProxy")
+            try:
+                schema.declaration_by_name(cls)
+            except RuntimeError:  # z. B. IfcChimney gibt es in IFC2x3 nicht
+                cls = "IfcBuildingElementProxy"
             el = api.root.create_entity(f, ifc_class=cls, name=ft["type"])
             depth = _m(STAIR_MARK) if cls == "IfcStair" else h
             rep = api.geometry.add_slab_representation(f, context=body, depth=depth,
@@ -310,6 +327,12 @@ def to_ifc(storeys: list[dict], title: str = "", height: float = 250.0, north: f
         if contained:
             api.spatial.assign_container(f, products=contained, relating_structure=storey)
 
+    if version == "IFC2X3":  # Pflichtangaben, die IFC4 nicht mehr verlangt
+        history = next(iter(f.by_type("IfcOwnerHistory")), None) or api.owner.create_owner_history(f)
+        for el in f.by_type("IfcRoot"):
+            el.OwnerHistory = el.OwnerHistory or history
+        for el in f.by_type("IfcStair"):
+            el.ShapeType = el.ShapeType or "NOTDEFINED"
     with tempfile.TemporaryDirectory() as d:  # write() schreibt nur in Dateien
         p = Path(d) / "modell.ifc"
         f.write(str(p))

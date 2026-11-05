@@ -56,9 +56,10 @@ export default function BuildingPanel({ folderId, name, ready }: { folderId: str
     setShow(true);
   }
 
-  async function ifc() {
+  async function ifc(old = false) {
     if (!(await save())) return;
-    await download(`/folders/${folderId}/building/export/ifc`, `${name} – Gebäude.ifc`).catch((e) => setErr(e.message));
+    await download(`/folders/${folderId}/building/export/ifc${old ? "?schema=IFC2X3" : ""}`,
+      `${name} – Gebäude${old ? " (IFC2x3)" : ""}.ifc`).catch((e) => setErr(e.message));
   }
 
   const storeys = rows.reduce((n, r) => n + (+r.repeat || 0), 0);
@@ -99,7 +100,8 @@ export default function BuildingPanel({ folderId, name, ready }: { folderId: str
       </div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
         <button className="btn primary" disabled={busy} onClick={view}>{busy ? "Speichert …" : show ? (dirty ? "3D-Modell aktualisieren" : "3D-Modell neu laden") : "3D-Modell erstellen"}</button>
-        <button className="btn" disabled={busy} onClick={ifc}>IFC des Gebäudes</button>
+        <button className="btn" disabled={busy} onClick={() => ifc()}>IFC des Gebäudes</button>
+        <button className="btn" disabled={busy} onClick={() => ifc(true)} title="Älteres IFC-Schema, z. B. für HottCAD von Hottgenroth">IFC2x3 (HottCAD)</button>
         {show && <button className="btn" onClick={() => setShow(false)}>3D schließen</button>}
       </div>
       {err && <p className="err" style={{ margin: 0 }}>{err}</p>}

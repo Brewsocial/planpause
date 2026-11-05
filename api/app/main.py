@@ -526,10 +526,12 @@ def building_model(fid: str, o: str = Depends(org)):
 
 
 @app.get("/folders/{fid}/building/export/ifc")
-def building_ifc(fid: str, o: str = Depends(org)):
+def building_ifc(fid: str, schema: Literal["IFC4", "IFC2X3"] = "IFC4", o: str = Depends(org)):
+    """schema=IFC2X3 für Programme, die nur das ältere Schema lesen (z. B. HottCAD von Hottgenroth)."""
     f = _folder(o, fid)
-    data = to_ifc(_storeys(o, fid), f["name"], north=_building(o, fid)["north"])
-    return Response(data, media_type="application/x-step", headers={"Content-Disposition": f'attachment; filename="{_slug(f["name"])}_gebaeude.ifc"'})
+    data = to_ifc(_storeys(o, fid), f["name"], north=_building(o, fid)["north"], version=schema)
+    name = f"{_slug(f['name'])}_gebaeude{'_ifc2x3' if schema == 'IFC2X3' else ''}.ifc"
+    return Response(data, media_type="application/x-step", headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
 
 def _save_plan(o: str, pid: str, plan: PlanModel) -> dict:

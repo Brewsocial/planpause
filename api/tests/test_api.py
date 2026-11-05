@@ -368,3 +368,6 @@ def test_gebaeude_in_3d_geschosse_stapeln(client, tmp_path):
     assert ue.get_psets(m.by_type("IfcWall")[0])["Qto_WallBaseQuantities"]["GrossSideArea"] > 0
     slabs = {s.PredefinedType: ue.get_psets(s)["Pset_SlabCommon"]["IsExternal"] for s in m.by_type("IfcSlab")}
     assert slabs == {"BASESLAB": True, "FLOOR": False, "ROOF": True}
+
+    old = client.get(f"/folders/{fid}/building/export/ifc?schema=IFC2X3", headers=H)
+    assert "_gebaeude_ifc2x3.ifc" in old.headers["content-disposition"] and b"FILE_SCHEMA(('IFC2X3'))" in old.content
