@@ -12,7 +12,8 @@ LAYERS = [("WAENDE", 1), ("BRANDWAND", 6), ("FENSTER", 5), ("TUEREN", 3), ("TORE
 UNITS = {"mm": (10.0, 4), "cm": (1.0, 5), "m": (0.01, 6)}
 
 
-def to_dxf(geom: dict, issues: list | None = None, unit: str = "mm", title: str = "") -> bytes:
+def to_dxf(geom: dict, issues: list | None = None, unit: str = "mm", title: str = "", dim_print: int | None = None) -> bytes:
+    """dim_print = Maßstabszahl: Bemaßung für den Druck in diesem Maßstab (Texte 2 mm hoch, Maße in cm)."""
     f, code = UNITS[unit]
     doc = ezdxf.new("R2010", setup=True)
     doc.header["$INSUNITS"] = code
@@ -75,6 +76,8 @@ def to_dxf(geom: dict, issues: list | None = None, unit: str = "mm", title: str 
             if a:
                 msp.add_text(f"{a:.2f} m²".replace(".", ","), height=13 * f, dxfattribs={"layer": "RAEUME"}).set_placement(P(lx, ly + 28), align=TextEntityAlignment.MIDDLE_CENTER)
     x0, y0, x1, y1 = geom["bbox"]
+    dim = {} if not dim_print else {"dimscale": dim_print * f / 10, "dimtxt": 2.0, "dimasz": 1.5, "dimexo": 1.0, "dimexe": 1.0,
+                                    "dimtsz": 1.0, "dimlfac": 1 / f, "dimdec": 1, "dimzin": 8, "dimdsep": ord(","), "dimgap": 0.6}
     for k, ch in enumerate(geom["chains"]):
         pos = ch["positions"]
         lab = (ch["label"] or ch["id"]).lower()
@@ -85,10 +88,10 @@ def to_dxf(geom: dict, issues: list | None = None, unit: str = "mm", title: str 
                 continue
             if ch["axis"] == "x":
                 y = y1 + off if "unten" in lab else y0 - off
-                d = msp.add_linear_dim(base=P(0, y), p1=P(a, y), p2=P(b, y), dxfattribs={"layer": "BEMASSUNG"})
+                d = msp.add_linear_dim(base=P(0, y), p1=P(a, y), p2=P(b, y), override=dim, dxfattribs={"layer": "BEMASSUNG"})
             else:
                 x = x1 + off if "rechts" in lab else x0 - off
-                d = msp.add_linear_dim(base=P(x, 0), p1=P(x, a), p2=P(x, b), angle=90, dxfattribs={"layer": "BEMASSUNG"})
+                d = msp.add_linear_dim(base=P(x, 0), p1=P(x, a), p2=P(x, b), angle=90, override=dim, dxfattribs={"layer": "BEMASSUNG"})
             d.render()
     for n, i in enumerate([i for i in (issues or []) if getattr(i, "at", None)], start=1):
         x, y = i.at

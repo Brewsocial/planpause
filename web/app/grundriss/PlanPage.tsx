@@ -38,6 +38,7 @@ export default function PlanPage() {
   const [chains, setChains] = useState(true);
   const [img, setImg] = useState<{ url: string; w: number; h: number } | null>(null);
   const [unit, setUnit] = useState<"mm" | "cm" | "m">("mm");
+  const [scale, setScale] = useState("");
   const [height, setHeight] = useState(2.5);  // lichte Raumhöhe in m für das IFC-Modell (Annahme)
   const [showAnyway, setShowAnyway] = useState(false);
   const [zoom, setZoom] = useState(1);
@@ -262,9 +263,16 @@ export default function PlanPage() {
                 </select></label>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                 <button className="btn primary" onClick={() => download(`/projects/${id}/export/dxf?unit=${unit}`, `${p.meta.name}.dxf`)}>DXF herunterladen</button>
+                <button className="btn" onClick={() => download(`/projects/${id}/export/pdf${scale ? `?scale=${scale}` : ""}`, `${p.meta.name}.pdf`)}>PDF-Plan</button>
                 <button className="btn" onClick={() => download(`/projects/${id}/export/md`, `${p.meta.name}_pruefbericht.md`)}>Prüfbericht</button>
                 <button className="btn" onClick={() => download(`/projects/${id}/export/json`, `${p.meta.name}.json`)}>Rohdaten (JSON)</button>
               </div>
+              <p style={{ margin: 0 }}>Der PDF-Plan zeigt den Grundriss maßstäblich mit Bemaßung in cm, Raumflächen und Plankopf, zum Drucken oder Weitergeben.</p>
+              <label className="check">Maßstab
+                <select value={scale} onChange={(e) => setScale(e.target.value)}>
+                  <option value="">automatisch (A4/A3)</option>
+                  {["50", "100", "200", "250", "500"].map((s) => <option key={s} value={s}>1:{s}</option>)}
+                </select></label>
               <h3 style={{ margin: "18px 0 0", fontSize: 17 }}>BIM-Modell (IFC)</h3>
               <p style={{ margin: 0 }}>Bestandsmodell zum Weiterplanen in ArchiCAD, Revit, Allplan und Co.: Wände mit Öffnungen, Fenster, Türen und Räume mit Fläche.
                 Höhen stehen im Grundriss meist nicht. Raumhöhe, Fenster- und Türhöhen sind deshalb Annahmen, solange der Plan nichts angibt, und im Modell als angenommen gekennzeichnet.</p>

@@ -46,7 +46,7 @@ const FAQ: [string, string][] = [
   ["Was passiert, wenn Maße im Plan nicht zusammenpassen?",
     "Widersprüchliche Maßketten werden erkannt und im Ergebnis markiert, statt still übernommen zu werden. Du siehst genau, welche Stelle du vor Ort nachmessen solltest."],
   ["In welchem Format bekomme ich den Grundriss?",
-    "Als DXF in Millimetern, mit getrennten Layern für Wände, Fenster, Türen, Räume mit Fläche, Bemaßung und Prüfpunkte. DXF öffnen alle gängigen CAD-Programme, etwa AutoCAD, BricsCAD, ArchiCAD, Vectorworks oder DraftSight. Zusätzlich gibt es jeden Grundriss, jedes Geschoss und das ganze Gebäude als IFC-Modell für BIM-Programme."],
+    "Als DXF in Millimetern, mit getrennten Layern für Wände, Fenster, Türen, Räume mit Fläche, Bemaßung und Prüfpunkte. DXF öffnen alle gängigen CAD-Programme, etwa AutoCAD, BricsCAD, ArchiCAD, Vectorworks oder DraftSight. Zusätzlich gibt es jeden Grundriss, jedes Geschoss und das ganze Gebäude als IFC-Modell für BIM-Programme. Zum Drucken oder Weitergeben gibt es jeden Grundriss außerdem als maßstäblichen PDF-Plan mit Bemaßung und Plankopf."],
   ["Woher kommen die Höhen im 3D-Modell?",
     "Grundrisse enthalten meist keine Höhen. Geschosshöhen trägst du ein, etwa aus dem Schnitt; Fenster- und Türhöhen übernimmt Planpause, wo der Plan sie nennt. Alles andere ist angenommen und im IFC an jedem Bauteil als angenommen gekennzeichnet."],
   ["Mein Gebäude ist auf mehrere Zeichnungen verteilt. Geht das?",

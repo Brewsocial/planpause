@@ -1,5 +1,6 @@
 import io
 import json
+import zlib
 
 import cv2
 import numpy as np
@@ -368,6 +369,12 @@ def test_gebaeude_in_3d_geschosse_stapeln(client, tmp_path):
     assert ue.get_psets(m.by_type("IfcWall")[0])["Qto_WallBaseQuantities"]["GrossSideArea"] > 0
     slabs = {s.PredefinedType: ue.get_psets(s)["Pset_SlabCommon"]["IsExternal"] for s in m.by_type("IfcSlab")}
     assert slabs == {"BASESLAB": True, "FLOOR": False, "ROOF": True}
+
+    pdf = client.get(f"/folders/{fid}/floors/EG/export/pdf", headers=H)
+    assert pdf.status_code == 200 and pdf.content.startswith(b"%PDF") and "Punkthaus_EG.pdf" in pdf.headers["content-disposition"]
+    one = client.get(f"/projects/{a['id']}/export/pdf?scale=200", headers=H)
+    assert one.status_code == 200 and b"1:200" in zlib.decompress(one.content.split(b"stream\n")[1].split(b"\nendstream")[0])
+    assert client.get(f"/projects/{a['id']}/export/pdf?scale=75", headers=H).status_code == 422
 
     old = client.get(f"/folders/{fid}/building/export/ifc?schema=IFC2X3", headers=H)
     assert "_gebaeude_ifc2x3.ifc" in old.headers["content-disposition"] and b"FILE_SCHEMA(('IFC2X3'))" in old.content

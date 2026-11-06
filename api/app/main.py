@@ -23,6 +23,7 @@ from pydantic import BaseModel, Field
 
 from planpause_engine.export import to_dxf, to_report
 from planpause_engine.ifc import to_ifc, to_meshes
+from planpause_engine.sheet import to_pdf
 from planpause_engine.model import Measurement, PlanModel
 from planpause_engine.pipeline import analyze, issues_from
 from planpause_engine.preprocess import Prepared, prepare
@@ -418,6 +419,20 @@ def floor_dxf(fid: str, floor: str, unit: Literal["mm", "cm", "m"] = "mm", o: st
     return Response(data, media_type="application/dxf", headers={"Content-Disposition": f'attachment; filename="{_slug(f["name"])}_{_slug(floor)}.dxf"'})
 
 
+def _scale_ok(scale: int | None):
+    if scale is not None and scale not in (50, 100, 200, 250, 500):
+        raise HTTPException(422, "Maßstab 1:50, 1:100, 1:200, 1:250 oder 1:500.")
+
+
+@app.get("/folders/{fid}/floors/{floor}/export/pdf")
+def floor_pdf(fid: str, floor: str, scale: int | None = Query(None, description="Maßstabszahl: 50, 100, 200, 250 oder 500"), o: str = Depends(org)):
+    """Grundriss des Geschosses als maßstäblicher PDF-Plan (ohne Angabe der größte Maßstab, der auf A4/A3 passt)."""
+    _scale_ok(scale)
+    f = _folder(o, fid)
+    data = to_pdf(_floor_geometry(o, fid, floor), f["name"], floor, scale, north=(f.get("building") or {}).get("north"))
+    return Response(data, media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{_slug(f["name"])}_{_slug(floor)}.pdf"'})
+
+
 @app.get("/folders/{fid}/floors/{floor}/model")
 def floor_model(fid: str, floor: str, height: float = Query(250, ge=180, le=600), o: str = Depends(org)):
     """3D-Ansicht des Geschosses: Dreiecksnetze aus demselben IFC-Modell wie beim Download."""
@@ -728,14 +743,24 @@ def plan_model(pid: str, height: float = Query(250, ge=180, le=600), o: str = De
 
 
 @app.get("/projects/{pid}/export/{fmt}")
-def export(pid: str, fmt: Literal["dxf", "ifc", "md", "json"], unit: Literal["mm", "cm", "m"] = "mm",
-           height: float = Query(250, ge=180, le=600), o: str = Depends(org)):
+def export(pid: str, fmt: Literal["dxf", "ifc", "pdf", "md", "json"], unit: Literal["mm", "cm", "m"] = "mm",
+           height: float = Query(250, ge=180, le=600), scale: int | None = Query(None, description="Maßstabszahl: 50, 100, 200, 250 oder 500"),
+           o: str = Depends(org)):
     meta = _nf(lambda: store.meta(o, pid))
     plan, result = _plan(o, pid), store.read_json(o, pid, "result.json")
     slug = _slug(meta["name"])
     if fmt == "dxf":
         data = to_dxf(result["geometry"], issues_from(result), unit, plan.title or meta["name"])
         return Response(data, media_type="application/dxf", headers={"Content-Disposition": f'attachment; filename="{slug}.dxf"'})
+    if fmt == "pdf":
+        _scale_ok(scale)
+        try:
+            folder = _folder(o, meta["folder_id"]) if meta.get("folder_id") else {}
+        except HTTPException:  # Projekt gelöscht: ohne Nordrichtung
+            folder = {}
+        data = to_pdf(result["geometry"], plan.title or meta["name"], meta.get("floor") or "", scale,
+                      north=(folder.get("building") or {}).get("north"))
+        return Response(data, media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{slug}.pdf"'})
     if fmt == "ifc":  # height: lichte Raumhöhe in cm (Annahme, steht im Grundriss meist nicht)
         data = to_ifc([{"name": meta.get("floor") or "EG", "geometry": result["geometry"]}], plan.title or meta["name"], height)
         return Response(data, media_type="application/x-step", headers={"Content-Disposition": f'attachment; filename="{slug}.ifc"'})

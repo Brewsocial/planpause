@@ -87,6 +87,12 @@ export default function FloorPage() {
       .catch((e) => setErr(e.message));
   }
 
+  async function exportPdf() {
+    if (dirty) await save();
+    await download(`/folders/${fid}/floors/${encodeURIComponent(floor)}/export/pdf`, `${name} – ${floor}.pdf`)
+      .catch((e) => setErr(e.message));
+  }
+
   async function exportDxf() {
     if (dirty) await save();
     await download(`/folders/${fid}/floors/${encodeURIComponent(floor)}/export/dxf?unit=${unit}`, `${name} – ${floor}.dxf`)
@@ -215,6 +221,7 @@ export default function FloorPage() {
               <option value="mm">mm</option><option value="cm">cm</option><option value="m">m</option>
             </select>
             <button className="btn" onClick={exportDxf}>DXF des Geschosses</button>
+            <button className="btn" onClick={exportPdf}>PDF-Plan</button>
             <label className="check">Raumhöhe <input type="number" min={1.8} max={6} step={0.05} value={height} onChange={(e) => setHeight(+e.target.value || 2.5)} style={{ width: 72 }} /> m</label>
             <button className="btn" onClick={exportIfc}>IFC des Geschosses</button>
             <button className="btn" aria-pressed={show3d} onClick={toggle3d}>{show3d ? "3D schließen" : "3D-Ansicht"}</button>
@@ -222,7 +229,7 @@ export default function FloorPage() {
           {show3d && <ModelView key={version} path={`/folders/${fid}/floors/${encodeURIComponent(floor)}/model`} height={height} />}
           {err && <p className="err" style={{ margin: 0 }}>{err}</p>}
           <p className="hint" style={{ margin: 0 }}>
-            Tipp: Zeichnungen ziehen, bis sie einrasten, danach mit x/y in cm feinjustieren. „Höhe“ versetzt eine Zeichnung in cm nach oben oder unten, etwa bei Häusern mit versetzten Geschossen (wirkt im 3D-Modell und im IFC). DXF und IFC enthalten alle Zeichnungen dieses Geschosses in ihrer Lage.
+            Tipp: Zeichnungen ziehen, bis sie einrasten, danach mit x/y in cm feinjustieren. „Höhe“ versetzt eine Zeichnung in cm nach oben oder unten, etwa bei Häusern mit versetzten Geschossen (wirkt im 3D-Modell und im IFC). DXF, PDF-Plan und IFC enthalten alle Zeichnungen dieses Geschosses in ihrer Lage.
           </p>
         </section>
       </div>

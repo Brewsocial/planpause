@@ -11,6 +11,7 @@ dependencies = [
   "anthropic>=1.15",
   "pypdfium2>=4.30",
   "ifcopenshell>=0.8",
+  "pillow>=10",  # vom Zeichen-Add-on von ezdxf (PDF-Plan) verlangt
 ]
 
 [project.optional-dependencies]
