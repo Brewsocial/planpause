@@ -46,6 +46,10 @@ def test_demo_projekt_messung_und_export(client):
     dims = [next(e for e in doc.blocks.get(d.dxf.geometry) if e.dxftype() == "MTEXT") for d in doc.modelspace().query("DIMENSION")]
     assert dims and all(t.dxf.char_height == 200 for t in dims)
     assert {"16", "107"} <= {t.plain_text() for t in dims} and doc.header["$EXTMAX"][0] > doc.header["$EXTMIN"][0]
+    refs = doc.modelspace().query("INSERT")  # Fenster und Türen als Blöcke mit Maßen (ein Objekt im CAD)
+    win = next(r for r in refs if r.dxf.name.startswith("FENSTER_"))
+    assert win.dxf.layer == "FENSTER" and {a.dxf.tag for a in win.attribs} == {"BREITE", "HOEHE", "BRUESTUNG", "QUELLE"}
+    assert any(r.dxf.name.startswith("TUER_") for r in refs) and not doc.modelspace().query("LINE[layer=='FENSTER']")
     md = client.get(f"/projects/{pid}/export/md", headers=H)
     assert "Nachmessliste" in md.text
     ifc = client.get(f"/projects/{pid}/export/ifc?height=265", headers=H)

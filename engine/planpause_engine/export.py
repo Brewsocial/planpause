@@ -34,23 +34,58 @@ def to_dxf(geom: dict, issues: list | None = None, unit: str = "mm", title: str 
         rect(w["rect"], "BRANDWAND" if w["kind"] == "brand" else "WAENDE", fill=True)
         if w["estimated"]:
             rect(w["rect"], "GESCHAETZT")
+    # Fenster, Türen und Tore als Blöcke: jedes ein Objekt im CAD, mit Maßen als Attributen.
+    # Fenster gleicher Größe teilen sich einen Block (waagerecht definiert, senkrechte um 90° gedreht).
+    def num(v):
+        return f"{v:g}".replace(".", ",")
+
+    def block(name, layer, draw, tags):
+        if name not in doc.blocks:
+            b = doc.blocks.new(name)
+            draw(b, {"layer": layer})
+            for i, tag in enumerate(tags):
+                b.add_attdef(tag, (0, -i * 10 * f), dxfattribs={"layer": layer, "height": 10 * f, "flags": 1})
+        return name
+
+    def insert(name, layer, at, rotation, values):
+        ref = msp.add_blockref(name, at, dxfattribs={"layer": layer, "rotation": rotation})
+        for tag, value in values.items():
+            ref.add_attrib(tag, value, insert=at, dxfattribs={"layer": layer, "height": 10 * f, "flags": 1})
+
+    doors = 0
     for o in geom["openings"]:
         x0, y0, x1, y1 = o["rect"]
+        flat = x1 - x0 >= y1 - y0
+        length, depth = (x1 - x0, y1 - y0) if flat else (y1 - y0, x1 - x0)
+        at, rotation = (P(x0, y1), 0) if flat else (P(x1, y1), 90)  # untere linke Ecke im CAD
+        info = {"BREITE": num(round(length, 1)), "HOEHE": num(o["height_stated"]) if o.get("height_stated") else "nicht im Plan",
+                "QUELLE": "geschätzt" if o.get("estimated") else "Maßkette"}
+        L, D = length * f, depth * f
         if o["type"] == "window":
-            rect(o["rect"], "FENSTER")
-            if x1 - x0 >= y1 - y0:
-                msp.add_line(P(x0, (y0 + y1) / 2), P(x1, (y0 + y1) / 2), dxfattribs={"layer": "FENSTER"})
-            else:
-                msp.add_line(P((x0 + x1) / 2, y0), P((x0 + x1) / 2, y1), dxfattribs={"layer": "FENSTER"})
+            info["BRUESTUNG"] = num(o["sill_stated"]) if o.get("sill_stated") is not None else "nicht im Plan"
+
+            def draw(b, a, L=L, D=D):
+                b.add_lwpolyline([(0, 0), (L, 0), (L, D), (0, D)], close=True, dxfattribs=a)
+                b.add_line((0, D / 2), (L, D / 2), dxfattribs=a)
+            name = block(f"FENSTER_{num(round(length, 1))}x{num(round(depth, 1))}", "FENSTER", draw, list(info))
+            insert(name, "FENSTER", at, rotation, info)
         elif o["type"] == "gate":
-            msp.add_line(P(x0, (y0 + y1) / 2), P(x1, (y0 + y1) / 2), dxfattribs={"layer": "TORE", "linetype": "DASHED"})
-        elif o["swing"]:
-            s = o["swing"]
-            (hx, hy), r, a0, a1 = s["hinge"], s["r"], s["a0"], s["a1"]
+            def draw(b, a, L=L, D=D):
+                b.add_line((0, D / 2), (L, D / 2), dxfattribs={**a, "linetype": "DASHED"})
+            name = block(f"TOR_{num(round(length, 1))}x{num(round(depth, 1))}", "TORE", draw, list(info))
+            insert(name, "TORE", at, rotation, info)
+        elif o["swing"]:  # Aufschlag ist bei jeder Tür anders: eigener Block, Basispunkt am Band
+            doors += 1
+            sw = o["swing"]
+            (hx, hy), r, a0, a1 = sw["hinge"], sw["r"], sw["a0"], sw["a1"]
             lo, hi = sorted((a0, a1))
-            msp.add_arc(P(hx, hy), r * f, start_angle=(-hi) % 360, end_angle=(-lo) % 360, dxfattribs={"layer": "TUEREN"})
-            ex, ey = hx + r * math.cos(math.radians(a1)), hy + r * math.sin(math.radians(a1))
-            msp.add_line(P(hx, hy), P(ex, ey), dxfattribs={"layer": "TUEREN"})
+            ex, ey = r * math.cos(math.radians(a1)), r * math.sin(math.radians(a1))
+
+            def draw(b, a, r=r, lo=lo, hi=hi, ex=ex, ey=ey):
+                b.add_arc((0, 0), r * f, start_angle=(-hi) % 360, end_angle=(-lo) % 360, dxfattribs=a)
+                b.add_line((0, 0), (ex * f, -ey * f), dxfattribs=a)
+            name = block(f"TUER_{doors}_{num(round(length, 1))}", "TUEREN", draw, list(info))
+            insert(name, "TUEREN", P(hx, hy), 0, info)
     for ft in geom["features"]:
         x0, y0, x1, y1 = ft["rect"]
         layer = "TREPPE" if ft["type"].lower().startswith("treppe") else "BAUTEILE"

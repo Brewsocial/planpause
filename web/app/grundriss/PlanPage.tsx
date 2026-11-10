@@ -256,7 +256,7 @@ export default function PlanPage() {
 
           {tab === "export" && (
             <div className="pane">
-              <p>Die DXF enthält Layer für Wände, Brandwände, Fenster, Türen, Tore, Treppe, Räume, Bemaßung und Prüfpunkte. Geschätzte Wände liegen zusätzlich auf dem Layer GESCHAETZT.</p>
+              <p>Die DXF enthält Layer für Wände, Brandwände, Fenster, Türen, Tore, Treppe, Räume, Bemaßung und Prüfpunkte. Fenster, Türen und Tore sind Blöcke: jedes ein Objekt, mit Breite, Höhe und Brüstung als Attribute. Bemaßung in cm, bemessen für 1:100. Geschätzte Wände liegen zusätzlich auf dem Layer GESCHAETZT.</p>
               <label className="check">DXF-Einheit
                 <select value={unit} onChange={(e) => setUnit(e.target.value as typeof unit)}>
                   <option value="mm">Millimeter</option><option value="cm">Zentimeter</option><option value="m">Meter</option>
