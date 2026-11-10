@@ -12,8 +12,8 @@ LAYERS = [("WAENDE", 1), ("BRANDWAND", 6), ("FENSTER", 5), ("TUEREN", 3), ("TORE
 UNITS = {"mm": (10.0, 4), "cm": (1.0, 5), "m": (0.01, 6)}
 
 
-def to_dxf(geom: dict, issues: list | None = None, unit: str = "mm", title: str = "", dim_print: int | None = None) -> bytes:
-    """dim_print = Maßstabszahl: Bemaßung für den Druck in diesem Maßstab (Texte 2 mm hoch, Maße in cm)."""
+def to_dxf(geom: dict, issues: list | None = None, unit: str = "mm", title: str = "", dim_print: int = 100) -> bytes:
+    """dim_print = Maßstabszahl, für die die Bemaßung bemessen ist (Texte 2 mm hoch auf dem Papier, Maße in cm)."""
     f, code = UNITS[unit]
     doc = ezdxf.new("R2010", setup=True)
     doc.header["$INSUNITS"] = code
@@ -76,7 +76,7 @@ def to_dxf(geom: dict, issues: list | None = None, unit: str = "mm", title: str 
             if a:
                 msp.add_text(f"{a:.2f} m²".replace(".", ","), height=13 * f, dxfattribs={"layer": "RAEUME"}).set_placement(P(lx, ly + 28), align=TextEntityAlignment.MIDDLE_CENTER)
     x0, y0, x1, y1 = geom["bbox"]
-    dim = {} if not dim_print else {"dimscale": dim_print * f / 10, "dimtxt": 2.0, "dimasz": 1.5, "dimexo": 1.0, "dimexe": 1.0,
+    dim = {"dimscale": dim_print * f / 10, "dimtxt": 2.0, "dimasz": 1.5, "dimexo": 1.0, "dimexe": 1.0,
                                     "dimtsz": 1.0, "dimlfac": 1 / f, "dimdec": 1, "dimzin": 8, "dimdsep": ord(","), "dimgap": 0.6}
     for k, ch in enumerate(geom["chains"]):
         pos = ch["positions"]
@@ -99,6 +99,10 @@ def to_dxf(geom: dict, issues: list | None = None, unit: str = "mm", title: str 
         msp.add_text(str(n), height=14 * f, dxfattribs={"layer": "PRUEFPUNKTE"}).set_placement(P(x, y), align=TextEntityAlignment.MIDDLE_CENTER)
     if title:
         msp.add_text(title, height=22 * f, dxfattribs={"layer": "0"}).set_placement(P((x0 + x1) / 2, y0 - 200), align=TextEntityAlignment.MIDDLE_CENTER)
+    from ezdxf import bbox
+    ext = bbox.extents(msp)  # damit CAD-Programme beim Öffnen auf den Plan zoomen
+    if ext.has_data:
+        msp.reset_extents(ext.extmin, ext.extmax)
     buf = io.StringIO()
     doc.write(buf)
     return buf.getvalue().encode("utf-8")

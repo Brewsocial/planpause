@@ -41,6 +41,11 @@ def test_demo_projekt_messung_und_export(client):
     assert "wahrscheinlich" in k["detail"]
     dxf = client.get(f"/projects/{pid}/export/dxf", headers=H)
     assert dxf.status_code == 200 and b"SECTION" in dxf.content[:200]
+    import ezdxf  # Bemaßung lesbar (Feedback aus Tenado): Text 2 mm bei 1:100, Werte in cm
+    doc = ezdxf.read(io.StringIO(dxf.content.decode()))
+    dims = [next(e for e in doc.blocks.get(d.dxf.geometry) if e.dxftype() == "MTEXT") for d in doc.modelspace().query("DIMENSION")]
+    assert dims and all(t.dxf.char_height == 200 for t in dims)
+    assert {"16", "107"} <= {t.plain_text() for t in dims} and doc.header["$EXTMAX"][0] > doc.header["$EXTMIN"][0]
     md = client.get(f"/projects/{pid}/export/md", headers=H)
     assert "Nachmessliste" in md.text
     ifc = client.get(f"/projects/{pid}/export/ifc?height=265", headers=H)
