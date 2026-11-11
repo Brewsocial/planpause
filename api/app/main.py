@@ -26,6 +26,7 @@ from planpause_engine.ifc import to_ifc, to_meshes
 from planpause_engine.sheet import to_pdf
 from planpause_engine.model import Measurement, PlanModel
 from planpause_engine.pipeline import analyze, issues_from
+from planpause_engine.purpose import PURPOSES
 from planpause_engine.preprocess import Prepared, prepare
 
 from .storage import NotFound, Store, UserExists
@@ -319,6 +320,25 @@ def patch_project(pid: str, body: PlanPatch, o: str = Depends(org)):
 
 class FolderIn(BaseModel):
     name: str
+    purpose: str | None = None  # Verwendungszweck, Schlüssel aus PURPOSES
+
+
+def _purpose_key(v: str | None) -> str | None:
+    if v is None or v == "":
+        return None
+    if v not in PURPOSES:
+        raise HTTPException(422, "Unbekannter Verwendungszweck. Möglich: " + ", ".join(PURPOSES))
+    return v
+
+
+def _purpose_of(o: str, meta: dict) -> str | None:
+    """Verwendungszweck des Projekts, zu dem ein Grundriss gehört (None ohne Projekt oder ohne Angabe)."""
+    if not meta.get("folder_id"):
+        return None
+    try:
+        return _folder(o, meta["folder_id"]).get("purpose") or None
+    except HTTPException:
+        return None
 
 
 class Placement(BaseModel):
@@ -330,6 +350,7 @@ class Placement(BaseModel):
 
 class FolderPatch(BaseModel):
     name: str | None = None
+    purpose: str | None = None  # "" löscht den Zweck
     assembly: dict[str, dict[str, Placement]] | None = None  # Geschoss -> Grundriss-ID -> Lage
 
 
@@ -353,7 +374,7 @@ def create_folder(body: FolderIn, o: str = Depends(org)):
     if not name:
         raise HTTPException(422, "Bitte einen Namen für das Projekt angeben.")
     fid = store.create(o, name)
-    return store.update_meta(o, fid, kind="folder", status="ordner")
+    return store.update_meta(o, fid, kind="folder", status="ordner", purpose=_purpose_key(body.purpose))
 
 
 @app.get("/folders/{fid}")
@@ -373,7 +394,15 @@ def patch_folder(fid: str, body: FolderPatch, o: str = Depends(org)):
         for floor, places in body.assembly.items():
             asm[_clean(floor, 20)] = {pid: p.model_dump() for pid, p in places.items()}
         kw["assembly"] = asm
-    return store.update_meta(o, fid, **kw)
+    if body.purpose is not None:
+        kw["purpose"] = _purpose_key(body.purpose)
+    out = store.update_meta(o, fid, **kw)
+    if body.purpose is not None and kw["purpose"] != (f.get("purpose") or None):
+        # Zweck steuert Prüfung und Sortierung: alle Grundrisse des Projekts neu prüfen (ohne KI, nur Rechnung)
+        for p in _plans(o):
+            if p.get("folder_id") == fid and p.get("status") == "analysiert":
+                _save_plan(o, p["id"], _plan(o, p["id"]))
+    return out
 
 
 @app.delete("/folders/{fid}")
@@ -549,8 +578,39 @@ def building_ifc(fid: str, schema: Literal["IFC4", "IFC2X3"] = "IFC4", o: str = 
     return Response(data, media_type="application/x-step", headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
 
+STOREY_TOL = 2.0  # cm: durchlaufende Bauteile müssen geschossübergreifend so genau übereinanderliegen
+
+
+def storey_checks(storeys: list[dict]) -> list[dict]:
+    """Geschosse als ein Gebäude: Außenwände (und Brandwände) aufeinanderfolgender Geschosse müssen übereinanderliegen.
+
+    Jede Außenwand des oberen Geschosses braucht im unteren eine Wand gleicher Lage (alle vier Kanten innerhalb STOREY_TOL).
+    Vor- und Rücksprünge sind möglich, sollen dann aber im Plan so gezeichnet sein; deshalb nur ein Hinweis je Geschosspaar."""
+    out = []
+    for low, up in zip(storeys, storeys[1:]):
+        if low["floor"] == up["floor"]:
+            continue  # baugleiche Geschosse
+        lower = [w["rect"] for w in low["geometry"]["walls"] if w["kind"] in ("aussen", "brand")]
+        upper = [w for w in up["geometry"]["walls"] if w["kind"] in ("aussen", "brand")]
+        miss = []
+        for w in upper:
+            r = w["rect"]
+            if not any(all(abs(a - b) <= STOREY_TOL for a, b in zip(r, q)) for q in lower):
+                miss.append({"rect": r, "kind": w["kind"]})
+        lb, ub = low["geometry"]["bbox"], up["geometry"]["bbox"]
+        out.append({"lower": low["floor"], "upper": up["floor"], "total": len(upper), "unmatched": len(miss),
+                    "ok": not miss, "bbox_shift": [round(u - l, 1) for u, l in zip(ub, lb)], "walls": miss[:20]})
+    return out
+
+
+@app.get("/folders/{fid}/building/checks")
+def building_checks(fid: str, o: str = Depends(org)):
+    """Geschossübergreifende Prüfung (Regel: durchlaufende Bauteile liegen innerhalb 20 mm übereinander)."""
+    return {"pairs": storey_checks(_storeys(o, fid)), "tolerance_cm": STOREY_TOL}
+
+
 def _save_plan(o: str, pid: str, plan: PlanModel) -> dict:
-    result = analyze(plan)
+    result = analyze(plan, _purpose_of(o, store.meta(o, pid)))
     store.write_json(o, pid, "plan.json", plan.model_dump(mode="json"))
     store.write_json(o, pid, "result.json", result)
     store.update_meta(o, pid, quality=result["quality"]["level"])
@@ -582,7 +642,8 @@ def _run_extraction(o: str, pid: str) -> None:
     try:
         store.update_meta(o, pid, status="analyse")
         prep = Prepared.load(store.read_bytes(o, pid, "prepared.jpg"))  # gleiches Koordinatensystem wie die Anzeige
-        plan, info = extract_plan(prep, store.meta(o, pid).get("notes", ""))
+        meta = store.meta(o, pid)
+        plan, info = extract_plan(prep, meta.get("notes", ""), purpose=_purpose_of(o, meta))
         store.write_json(o, pid, "extraction_log.json", info)
         _add_cost(o, pid, info)
         _save_plan(o, pid, plan)
@@ -765,7 +826,8 @@ def export(pid: str, fmt: Literal["dxf", "ifc", "pdf", "md", "json"], unit: Lite
         data = to_ifc([{"name": meta.get("floor") or "EG", "geometry": result["geometry"]}], plan.title or meta["name"], height)
         return Response(data, media_type="application/x-step", headers={"Content-Disposition": f'attachment; filename="{slug}.ifc"'})
     if fmt == "md":
-        md = to_report(plan.title or meta["name"], result["geometry"], issues_from(result), store.read_json(o, pid, "answers.json", {}))
+        md = to_report(plan.title or meta["name"], result["geometry"], issues_from(result), store.read_json(o, pid, "answers.json", {}),
+                       checklist=result.get("checklist"), annotations=result.get("annotations"), purpose=result.get("purpose") or "")
         return PlainTextResponse(md, headers={"Content-Disposition": f'attachment; filename="{slug}_pruefbericht.md"'})
     return {"plan": plan.model_dump(mode="json"), "result": result}
 

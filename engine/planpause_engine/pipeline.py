@@ -1,16 +1,17 @@
 """Gesamtablauf: Planmodell -> Solver -> Geometrie -> Prüfpunkte."""
 from __future__ import annotations
 
-from .checks import Issue, run_checks
+from .checks import Issue, export_checklist, run_checks
 from .geometry import build_geometry
 from .model import PlanModel
 from .solver import solve
 
 
-def analyze(plan: PlanModel) -> dict:
+def analyze(plan: PlanModel, purpose: str | None = None) -> dict:
+    """purpose: Verwendungszweck des Projekts (siehe purpose.py), steuert Prüfung und Sortierung."""
     sol = solve(plan)
     geom = build_geometry(plan, sol)
-    issues = run_checks(plan, sol, geom)
+    issues = run_checks(plan, sol, geom, purpose)
     lines = geom["lines"]["x"] + geom["lines"]["y"]
     rooms = [r for r in geom["rooms"] if r["area_stated"] and r["area_geom"]]
     stats = {
@@ -26,7 +27,9 @@ def analyze(plan: PlanModel) -> dict:
         "scale_px_per_cm": [sol.x.scale, sol.y.scale],
     }
     return {"geometry": geom, "issues": [i.model_dump() for i in issues], "stats": stats,
-            "image_transform": image_transform(plan, geom), "quality": assess_quality(plan, stats)}
+            "image_transform": image_transform(plan, geom), "quality": assess_quality(plan, stats),
+            "checklist": export_checklist(issues, purpose), "purpose": purpose,
+            "annotations": [a.model_dump(mode="json") for a in plan.annotations]}
 
 
 PHOTO_TIPS = [

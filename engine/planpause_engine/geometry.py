@@ -68,7 +68,7 @@ def build_geometry(plan: PlanModel, sol: Solution) -> dict:
         else:
             label = None
         rooms.append({"name": r.name, "area_stated": r.area_stated, "area_geom": round(area, 3) if area else None,
-                      "poly": [list(p) for p in pts], "label": label,
+                      "poly": [list(p) for p in pts], "label": label, "name_assumed": r.name_assumed,
                       "estimated": any(est(("x", a), ("y", b)) for a, b in r.poly)})
     zones = [{"type": z.type, "poly": [[X[a], Y[b]] for a, b in z.poly]} for z in plan.zones]
 

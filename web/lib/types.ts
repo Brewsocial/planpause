@@ -14,7 +14,7 @@ export interface Geometry {
   openings: { type: "window" | "door" | "gate" | "passage"; rect: Rect; estimated: boolean; width_stated: number | null;
     swing: { hinge: [number, number]; r: number; a0: number; a1: number } | null }[];
   features: { type: string; rect: Rect; estimated: boolean; treads: number | null; note: string }[];
-  rooms: { name: string; area_stated: number | null; area_geom: number | null; poly: [number, number][]; label: [number, number] | null; estimated: boolean }[];
+  rooms: { name: string; area_stated: number | null; area_geom: number | null; poly: [number, number][]; label: [number, number] | null; estimated: boolean; name_assumed?: boolean }[];
   zones: { type: string; poly: [number, number][] }[];
   chains: Chain[];
   lines: { x: Line[]; y: Line[] };
@@ -24,14 +24,24 @@ export interface Stats {
   chains_total: number; chains_suspect: number; conflicts: number; rooms_checked: number; rooms_ok: number;
 }
 export interface Quality { level: "gut" | "eingeschraenkt" | "nicht_auswertbar"; reasons: string[]; tips: string[] }
+export interface Check { id: string; title: string; ok: boolean; detail: string; issues: string[] }
+export interface Annotation { kind: "handschriftlich" | "stempel" | "hoehenkote" | "schraffur" | "sonstiges"; text: string }
+export type Purpose = "brandschutz" | "umbau" | "vermietung" | "aufmass" | "energie";
+export const PURPOSES: { key: Purpose; label: string }[] = [
+  { key: "brandschutz", label: "Brandschutz" }, { key: "umbau", label: "Umbau" }, { key: "vermietung", label: "Vermietung" },
+  { key: "aufmass", label: "Aufmaß" }, { key: "energie", label: "Energieberatung" },
+];
 export interface Result {
   geometry: Geometry; issues: Issue[]; stats: Stats; quality?: Quality;
   image_transform: { x: { scale: number; offset: number }; y: { scale: number; offset: number } } | null;
+  checklist?: Check[]; purpose?: Purpose | null; annotations?: Annotation[];
 }
+/** Geschossübergreifende Prüfung: Außenwände des oberen Geschosses ohne Gegenstück im unteren */
+export interface StoreyCheck { lower: string; upper: string; total: number; unmatched: number; ok: boolean; bbox_shift: number[] }
 export interface Meta { id: string; name: string; status: string; created: number; updated: number; error?: string | null; demo?: boolean; steps?: string[]; quality?: Quality["level"]; warnings?: string[]; cost_usd?: number; last_cost_usd?: number; analyses?: number[];
   kind?: "folder"; folder_id?: string | null; floor?: string; part?: string }
 export interface Placement { dx: number; dy: number; rot: 0 | 90 | 180 | 270; dz?: number }  // dz: Höhenversatz in cm
 /** Projekt = Ordner mit mehreren Grundrissen (z. B. ein Haus) */
-export interface Folder extends Meta { plans?: Meta[]; assembly?: Record<string, Record<string, Placement>> }
+export interface Folder extends Meta { plans?: Meta[]; assembly?: Record<string, Record<string, Placement>>; purpose?: Purpose | null }
 export interface Measurement { id: string; axis: Axis; a: string; b: string; value: number; note: string }
 export interface Project { meta: Meta; plan: { title?: string; measurements?: Measurement[]; questions?: { id: string; question: string; why: string; type: string; options: string[]; unit: string; topic: string }[] }; result: Result | Record<string, never>; answers: Record<string, string> }

@@ -17,6 +17,7 @@ from pydantic import ValidationError
 
 from .lines_cv import snap_lines
 from .model import PlanModel
+from .purpose import ai_hint
 from .preprocess import Prepared
 
 DEFAULT_MODEL = os.environ.get("PLANPAUSE_MODEL", "claude-opus-5-5")
@@ -63,16 +64,25 @@ Ein fehlendes Bauteil ist schlimmer als eines mit ungenauer Lage.
 - Fensterangaben wie "1.50/1.25" bedeuten Breite/Höhe: nur die Breite gehört in die Kette, die Höhe in height_stated der Öffnung.
 
 ## Bauteile
-- walls: Rechtecke aus vier Linien (x0 < x1, y0 < y1). kind: aussen, innen oder brand (wenn "Brandwand" dransteht). Öffnungen sind Lücken zwischen Wandrechtecken.
+- walls: Rechtecke aus vier Linien (x0 < x1, y0 < y1). kind: aussen, innen oder brand (wenn "Brandwand" dransteht oder die Wand als Brandwand schraffiert ist). Öffnungen sind Lücken zwischen Wandrechtecken.
   Jede im Bild gezeichnete Wand gehört hinein, jede Innenwand einzeln. Grenzen zwei Baukörper aneinander (z. B. Garage, Anbau),
   haben sie meist je eine eigene Wand; eine kleine Zahl wie „2“ zwischen zwei Maßketten ist dann die Fuge zwischen den beiden Wänden.
+  Gestrichelte Linien sind keine Wände: sie zeigen Unterzüge, Deckenöffnungen oder offene Durchgänge. Dort keine Wand, sondern bei Bedarf einen Durchgang eintragen.
 - openings: Fenster (window), Türen (door), Tore (gate), Durchgänge (passage) als Rechteck über die Wanddicke.
+  Jede Lücke in einer Wand ist eines davon: Fenster, Tür, Tor oder offener Durchgang. Eine Wand mit Lücke ohne Öffnung darf es nicht geben.
   Türen: hinge = Bandseite ("start" = kleinere Koordinate der Öffnung, "end" = größere), swing = Richtung, in die die Tür aufschlägt ("pos" = +x bzw. +y, "neg" = -x bzw. -y; y wächst nach unten).
   width_stated/height_stated/sill_stated aus Angaben wie "88⁵/2.08" oder "BR 87⁵" in cm.
-- features: Treppe (mit treads = Anzahl Stufen), Schornstein, Schacht, Stütze, Einbau.
+- features: Treppe (mit treads = Anzahl Stufen; Läufe und Podeste einzeln, note = Laufrichtung „auf“ nach oben links o. ä.), Schornstein, Schacht, Aufzug, Stütze, Einbau.
+  Schächte und Aufzüge sind als solche zu erfassen (Kreuz oder Diagonale im Rechteck, Beschriftung „Schacht“, „Fz“, „Aufzug“), nicht als Raum oder Abstellraum.
 - rooms: Name, area_stated in m² (das Zeichen # oder qm hinter Zahlen steht für m²), poly als Ecken der Innenkontur [x-Linie, y-Linie] im Uhrzeigersinn.
   Gib für jeden Raum den Umriss an, der sich aus den umgebenden Wänden ergibt (auch wenn diese Wände nur nach Zeichnung liegen). poly nur leer lassen, wenn der Raum im Bild wirklich keine erkennbare Begrenzung hat.
-- zones: Terrassen, Balkone und ähnliche Flächen außerhalb der Wände.
+  name genau wie im Plan geschrieben. Steht kein Name im Plan, einen passenden vergeben und name_assumed = true setzen.
+- zones: Terrassen, Balkone, Lichtschächte, Einfahrten und ähnliche Flächen außerhalb der Wände; auch Nachbarbebauung, wenn sie gezeichnet ist (type "Nachbar").
+
+## Was sonst im Plan steht
+- annotations: alles, was Information ist, aber kein Bauteil: handschriftliche Vermerke und Nachträge (kind handschriftlich), Stempel und Genehmigungsvermerke (stempel),
+  Höhenkoten wie „±0,00“ oder „+2,75“ (hoehenkote), Schraffurlegenden und Materialangaben wie „Mauerwerk an der Grundstücksgrenze“ (schraffur), sonstige Beschriftungen (sonstiges).
+  text wörtlich übernehmen, at = nächste Linien. Das ist kein Rauschen: ein Fachplaner braucht es.
 
 ## Fachliche Prüfung
 - ai_issues: nur, was ein Programm NICHT aus den Zahlen nachrechnen kann: unleserliche Stellen, vermutlich tragende Wände, Brandwände, Schornsteine, Schächte, fehlende Höhen, Treppen ohne Steigungsmaß, Flächenberechnung nach alter Norm, Barrierefreiheit. at = [x-Linie, y-Linie] in der Nähe, falls sinnvoll. Kurz und sachlich, auf Deutsch.
@@ -94,7 +104,7 @@ def _img(data: bytes) -> dict:
     return {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": base64.b64encode(data).decode()}}
 
 
-def build_messages(prep: Prepared, notes: str = "") -> list[dict]:
+def build_messages(prep: Prepared, notes: str = "", purpose: str | None = None) -> list[dict]:
     w, h = prep.size
     content: list[dict] = [{"type": "text", "text": (f"Bild 1: ganzer Plan, {w} × {h} Pixel. Alle px-Angaben beziehen sich auf dieses Bild. "
                                                      "Am Rand ist ein Lineal mit Pixelkoordinaten (Striche alle 50 px, Zahlen alle 100 px); "
@@ -104,7 +114,7 @@ def build_messages(prep: Prepared, notes: str = "") -> list[dict]:
         content += [{"type": "text", "text": (f"Bild {n}: vergrößerter Ausschnitt {name}. Sein Lineal zeigt die Pixelkoordinaten von Bild 1, "
                                               "daran lassen sich px-Werte genau ablesen.")},
                     _img(data)]
-    text = INSTRUCTIONS + (f"\n\nHinweise des Nutzers: {notes}" if notes else "")
+    text = INSTRUCTIONS + ai_hint(purpose) + (f"\n\nHinweise des Nutzers: {notes}" if notes else "")
     content.append({"type": "text", "text": text})
     return [{"role": "user", "content": content}]
 
@@ -126,14 +136,14 @@ class ExtractionError(ValueError):
 
 
 def extract_plan(prep: Prepared, notes: str = "", client=None, model: str | None = None, max_tokens: int = 128000,
-                 review: bool | None = None) -> tuple[PlanModel, dict]:
+                 review: bool | None = None, purpose: str | None = None) -> tuple[PlanModel, dict]:
     """Ruft Claude auf und liefert ein geprüftes PlanModel (Pixel bereits eingerastet)."""
     import anthropic  # erst hier, damit Engine-Tests ohne SDK laufen
 
     client = client or anthropic.Anthropic()
     model = model or DEFAULT_MODEL
     tool = {"name": TOOL_NAME, "description": "Speichert das Rastermodell des Grundrisses.", "input_schema": _schema()}
-    messages = build_messages(prep, notes)
+    messages = build_messages(prep, notes, purpose)
     log: dict = {"model": model, "effort": EFFORT, "task_budget": TASK_BUDGET, "review": REVIEW if review is None else review,
                  "rounds": [], "cost_usd": 0.0}
     # gemeinsam für beide Durchgänge

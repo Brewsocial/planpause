@@ -85,7 +85,7 @@ class Opening(Rect):
 
 
 class Feature(Rect):
-    type: str  # Treppe, Schornstein, Stütze, Schacht, Einbau
+    type: str = Field(description="Treppe, Schornstein, Stütze, Schacht, Aufzug, Einbau")
     note: str = ""
     treads: Optional[int] = None
 
@@ -95,6 +95,15 @@ class Room(BaseModel):
     area_stated: Optional[float] = Field(None, description="Fläche laut Plan in m²")
     poly: list[tuple[str, str]] = Field(default_factory=list, description="Eckpunkte als (x-Linie, y-Linie)")
     label_at: Optional[tuple[str, str]] = None
+    name_assumed: bool = Field(False, description="Name steht nicht im Plan, sondern wurde aus der Nutzung ergänzt")
+
+
+class Annotation(BaseModel):
+    """Information im Plan, die kein Bauteil ist: Vermerke, Stempel, Höhenkoten, Schraffurlegenden. Wird nicht gezeichnet, aber berichtet."""
+
+    kind: Literal["handschriftlich", "stempel", "hoehenkote", "schraffur", "sonstiges"] = "sonstiges"
+    text: str
+    at: Optional[tuple[str, str]] = Field(None, description="Nächste (x-Linie, y-Linie), falls sinnvoll")
 
 
 class Zone(BaseModel):
@@ -136,6 +145,7 @@ class PlanModel(BaseModel):
     features: list[Feature] = Field(default_factory=list)
     rooms: list[Room] = Field(default_factory=list)
     zones: list[Zone] = Field(default_factory=list)
+    annotations: list[Annotation] = Field(default_factory=list)
     ai_issues: list[AiIssue] = Field(default_factory=list)
     questions: list[Question] = Field(default_factory=list)
     summary: str = ""

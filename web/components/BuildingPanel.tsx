@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api, download, fmt, type Building } from "@/lib/api";
+import type { StoreyCheck } from "@/lib/types";
 
 import ModelView from "@/components/LazyModelView";
 
@@ -24,6 +25,7 @@ export default function BuildingPanel({ folderId, name, ready }: { folderId: str
   const [show, setShow] = useState(false);
   const [version, setVersion] = useState(0);
   const [err, setErr] = useState("");
+  const [checks, setChecks] = useState<StoreyCheck[]>([]);
 
   const take = (x: Building) => {
     setB(x);
@@ -33,6 +35,7 @@ export default function BuildingPanel({ folderId, name, ready }: { folderId: str
     setDirty(false);
   };
   useEffect(() => { if (ready) api.building(folderId).then(take).catch((e) => setErr(e.message)); }, [folderId, ready]);
+  useEffect(() => { if (ready) api.buildingChecks(folderId).then((c) => setChecks(c.pairs)).catch(() => setChecks([])); }, [folderId, ready, b]);
 
   if (!ready || !b || !b.floors.length) return null;
   const bad = rows.some((r) => !(num(r.height) >= 2 && num(r.height) <= 8) || !(+r.repeat >= 1 && +r.repeat <= 40));
@@ -105,6 +108,14 @@ export default function BuildingPanel({ folderId, name, ready }: { folderId: str
         {show && <button className="btn" onClick={() => setShow(false)}>3D schließen</button>}
       </div>
       {err && <p className="err" style={{ margin: 0 }}>{err}</p>}
+      {checks.length > 0 && (
+        <ul className="hint" style={{ margin: 0, paddingLeft: 18 }} aria-label="Geschoss-Abgleich">
+          {checks.map((c) => (
+            <li key={`${c.lower}-${c.upper}`}>
+              {c.ok ? `${c.upper} über ${c.lower}: Außenwände liegen übereinander (±2 cm).`
+                : `${c.upper} über ${c.lower}: ${c.unmatched} von ${c.total} Außenwänden haben im Geschoss darunter kein Gegenstück. Vor- und Rücksprünge sind möglich, sonst die Anordnung der Geschosse prüfen.`}
+            </li>))}
+        </ul>)}
       {show && <ModelView key={version} path={`/folders/${folderId}/building/model`} />}
       <p className="hint" style={{ margin: 0 }}>
         Baugleiche Geschosse (etwa 1. bis 8. OG) reicht es, einmal hochzuladen und die Anzahl zu erhöhen. Liegen Gebäudeteile

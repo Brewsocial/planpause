@@ -10,7 +10,7 @@ import PlanCard from "@/components/PlanCard";
 import { Waiver, usePrivate } from "@/components/Waiver";
 import { api } from "@/lib/api";
 import { floorOrder } from "@/lib/status";
-import type { Folder, Meta } from "@/lib/types";
+import { PURPOSES, type Folder, type Meta } from "@/lib/types";
 
 export default function FolderPage() {
   const id = useSearchParams().get("id") ?? "";
@@ -63,6 +63,10 @@ export default function FolderPage() {
     if (n && n.trim()) await api.patchFolder(id, { name: n }).then(load).catch((e) => setErr(e.message));
   }
 
+  async function setPurpose(v: string) {
+    await api.patchFolder(id, { purpose: v }).then(load).catch((e) => setErr(e.message));
+  }
+
   async function remove() {
     if (!data) return;
     const n = data.plans.length;
@@ -83,6 +87,15 @@ export default function FolderPage() {
         <button className="btn small" onClick={rename}>Umbenennen</button>
         <button className="btn small danger" onClick={remove}>Löschen</button>
       </div>
+      <p className="hint" style={{ margin: "-8px 0 16px", display: "flex", flexWrap: "wrap", gap: "6px 12px", alignItems: "center" }}>
+        <label className="check">Wofür wird der Plan gebraucht?
+          <select value={folder.purpose ?? ""} onChange={(e) => setPurpose(e.target.value)} aria-label="Verwendungszweck">
+            <option value="">noch offen</option>
+            {PURPOSES.map((x) => <option key={x.key} value={x.key}>{x.label}</option>)}
+          </select>
+        </label>
+        <span>Der Zweck legt fest, worauf die Analyse achtet und welche Prüfpunkte zuerst kommen.</span>
+      </p>
 
       <form className="sheet newplan" onSubmit={upload}>
         <div>

@@ -4,6 +4,7 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 from .model import Axis, PlanModel
+from .purpose import PURPOSES, purpose_label
 from .solver import Conflict, Solution, fmt
 
 
@@ -295,11 +296,187 @@ def ai_issues(plan: PlanModel, sol: Solution) -> list[Issue]:
     return out
 
 
+def _center(r: list[float]) -> list[float]:
+    return [(r[0] + r[2]) / 2, (r[1] + r[3]) / 2]
+
+
+def geometry_issues(geom: dict) -> list[Issue]:
+    """Entartete Geometrie: Dicke, Länge oder Fläche 0, weil zwei Kanten auf derselben Linie gelandet sind."""
+    bad: list[tuple[str, list[float]]] = []
+    for name, items in (("Wand", geom["walls"]), ("Öffnung", geom["openings"]), ("Bauteil", geom["features"])):
+        for e in items:
+            x0, y0, x1, y1 = e["rect"]
+            if min(x1 - x0, y1 - y0) < 0.5:
+                bad.append((name, _center(e["rect"])))
+    for r in geom["rooms"]:
+        if len(r["poly"]) >= 3 and (r["area_geom"] or 0) < 0.01:
+            bad.append((f"Raum {r['name']}", r["label"] or _center([*r["poly"][0], *r["poly"][0]])))
+    if not bad:
+        return []
+    what = ", ".join(sorted({n for n, _ in bad}))
+    return [Issue(id="geometrie-entartet", severity="kritisch", category="Geometrie",
+                  title=f"{len(bad)} Bauteile ohne Ausdehnung ({what})",
+                  detail="Dicke, Länge oder Fläche sind 0: zwei Kanten des Bauteils liegen auf derselben Stelle. So darf es nicht exportiert werden.",
+                  action="Die Linienzuordnung dieses Bauteils prüfen; meist ist eine Kante der falschen Linie zugeordnet.", at=bad[0][1])]
+
+
+def thickness_issues(plan: PlanModel, sol: Solution, geom: dict) -> list[Issue]:
+    """Gleicher Wandtyp, gleiche Dicke innerhalb eines Geschosses. Ausreißer nur, wenn sie so bemaßt sind."""
+    by_kind: dict[str, list[tuple[float, bool, dict]]] = {}
+    for w, pw in zip(geom["walls"], plan.walls):
+        x0, y0, x1, y1 = w["rect"]
+        flat = x1 - x0 >= y1 - y0
+        ax, a, b = ("y", pw.y0, pw.y1) if flat else ("x", pw.x0, pw.x1)
+        st = sol.ax(ax).status
+        by_kind.setdefault(w["kind"], []).append((min(x1 - x0, y1 - y0), st[a] == "mass" and st[b] == "mass", w))
+    names = {"aussen": "Außenwände", "innen": "Innenwände", "brand": "Brandwände"}
+    out = []
+    for kind, items in by_kind.items():
+        if len(items) < 3:
+            continue
+        ts = sorted(t for t, _, _ in items)
+        usual = ts[len(ts) // 2]
+        odd = [(t, w) for t, measured, w in items if not measured and abs(t - usual) > max(3.0, 0.25 * usual)]
+        if not odd:
+            continue
+        listed = ", ".join(fmt(round(t, 1)) for t, _ in odd[:5])
+        out.append(Issue(id=f"wanddicke-{kind}", severity="pruefen", category="Plausibilität",
+                         title=f"{len(odd)} {names[kind]} mit abweichender Dicke ({listed} statt {fmt(round(usual, 1))} cm)",
+                         detail=(f"Die meisten {names[kind]} dieses Geschosses sind {fmt(round(usual, 1))} cm dick. Diese Wände weichen ab, "
+                                 "ohne dass eine Maßkette das belegt; ihre Dicke stammt aus der Zeichnung."),
+                         action="Wanddicke an einer Laibung messen. Stimmt das übliche Maß, Wand entsprechend korrigieren.",
+                         at=_center(odd[0][1]["rect"])))
+    return out
+
+
+def _hits(r: list[float], others: list[tuple[int, list[float]]], eps: float = 1.0) -> list[int]:
+    x0, y0, x1, y1 = r
+    return [i for i, o in others if o[0] < x1 + eps and o[2] > x0 - eps and o[1] < y1 + eps and o[3] > y0 - eps]
+
+
+def contour_issues(geom: dict, reach: float = 300.0) -> list[Issue]:
+    """Freie Wandenden: Lücke in der Außenkontur oder Innenwandöffnung ohne Tür.
+
+    Jedes Wandende muss an eine andere Wand, eine Öffnung oder ein Bauteil anschließen. Tut es das nicht, wird in
+    Wandrichtung weitergesucht: trifft der Korridor auf eine Wand, fehlt dazwischen eine Öffnung (Außenwand) oder
+    ein Türsymbol (Innenwand, Lücke 40 bis 200 cm)."""
+    walls = geom["walls"]
+    solid = [(i, w["rect"]) for i, w in enumerate(walls)] + [(-1 - k, f["rect"]) for k, f in enumerate(geom["features"])]
+    opens = [(k, o["rect"]) for k, o in enumerate(geom["openings"])]
+    gaps: dict[tuple, tuple[str, float, list[float]]] = {}
+    loose: list[list[float]] = []
+    for i, w in enumerate(walls):
+        x0, y0, x1, y1 = w["rect"]
+        flat = x1 - x0 >= y1 - y0
+        others = [(j, r) for j, r in solid if j != i]
+        for side in (0, 1):
+            if flat:
+                probe = [x0 - 2, y0 + 0.5, x0, y1 - 0.5] if side == 0 else [x1, y0 + 0.5, x1 + 2, y1 - 0.5]
+                corridor = [x0 - reach, y0 + 0.5, x0, y1 - 0.5] if side == 0 else [x1, y0 + 0.5, x1 + reach, y1 - 0.5]
+                dist = (lambda r: x0 - r[2]) if side == 0 else (lambda r: r[0] - x1)
+            else:
+                probe = [x0 + 0.5, y0 - 2, x1 - 0.5, y0] if side == 0 else [x0 + 0.5, y1, x1 - 0.5, y1 + 2]
+                corridor = [x0 + 0.5, y0 - reach, x1 - 0.5, y0] if side == 0 else [x0 + 0.5, y1, x1 - 0.5, y1 + reach]
+                dist = (lambda r: y0 - r[3]) if side == 0 else (lambda r: r[1] - y1)
+            if _hits(probe, others) or _hits(probe, opens):
+                continue
+            end = [x0 if side == 0 else x1, (y0 + y1) / 2] if flat else [(x0 + x1) / 2, y0 if side == 0 else y1]
+            ahead = [(dist(r), j, r) for j, r in others if j in set(_hits(corridor, others, 0.0))]
+            ahead = [a for a in ahead if a[0] > 0.5]
+            if not ahead:
+                if w["kind"] == "aussen":
+                    loose.append(end)
+                continue
+            d, j, r = min(ahead, key=lambda a: a[0])
+            opening_between = [k for k, o in opens if _hits(corridor, [(k, o)], 0.0) and dist(o) < d]
+            if opening_between:
+                continue
+            key = (min(i, j), max(i, j))
+            if key in gaps:
+                continue
+            mid = [end[0] + (d / 2 if flat and side == 1 else -d / 2 if flat else 0), end[1] + (d / 2 if not flat and side == 1 else -d / 2 if not flat else 0)]
+            if w["kind"] == "aussen":
+                gaps[key] = ("aussen", d, mid)
+            elif 40 <= d <= 200:
+                gaps[key] = ("innen", d, mid)
+    out = []
+    outer = [(d, m) for k, (kind, d, m) in gaps.items() if kind == "aussen"]
+    inner = [(d, m) for k, (kind, d, m) in gaps.items() if kind == "innen"]
+    for n, (d, m) in enumerate(outer):
+        out.append(Issue(id=f"kontur-{n}", severity="pruefen", category="Kontur",
+                         title=f"Außenkontur offen: {fmt(round(d))} cm Lücke ohne Öffnung",
+                         detail="Zwischen zwei Außenwänden fehlt ein Stück: dort ist weder Wand noch Fenster, Tür oder Tor eingetragen.",
+                         action="Im Original nachsehen: Fenster, Tür, Tor oder Wand ergänzen, oder die Stelle als offen kennzeichnen.", at=m))
+    for n, (d, m) in enumerate(inner):
+        out.append(Issue(id=f"luecke-{n}", severity="pruefen", category="Öffnung",
+                         title=f"Lücke in Innenwand ohne Tür ({fmt(round(d))} cm)",
+                         detail="Die Wand hat eine türbreite Lücke, aber es ist weder eine Tür noch ein Durchgang eingetragen.",
+                         action="Tür mit Breite und Aufschlag eintragen oder als offenen Durchgang kennzeichnen.", at=m))
+    if loose:
+        out.append(Issue(id="kontur-frei", severity="info", category="Kontur",
+                         title=f"{len(loose)} Außenwandenden ohne Anschluss",
+                         detail=("Diese Außenwände enden frei, ohne dass in Wandrichtung eine weitere Wand folgt. Normal, wenn nur ein Teil des "
+                                 "Gebäudes gezeichnet ist oder der Anbau als eigener Grundriss folgt; sonst fehlt dort eine Wand."),
+                         action="Prüfen, ob der Plan an dieser Stelle vollständig ist.", at=loose[0]))
+    return out
+
+
+def purpose_issues(plan: PlanModel, geom: dict, purpose: str | None) -> list[Issue]:
+    """Inhalte, die der Verwendungszweck braucht und die im Plan fehlen. Ein leerer Layer braucht eine Begründung."""
+    p = PURPOSES.get(purpose or "")
+    if not p:
+        return []
+    ftypes = [f["type"].lower() for f in geom["features"]]
+    have = {
+        "brand": any(w["kind"] == "brand" for w in geom["walls"]),
+        "aussen": any(w["kind"] == "aussen" for w in geom["walls"]),
+        "treppe": any("trepp" in t for t in ftypes),
+        "schacht": any(k in t for t in ftypes for k in ("schacht", "aufzug", "fahrstuhl")),
+        "tueren": any(o["type"] == "door" for o in geom["openings"]),
+        "fenster": any(o["type"] == "window" for o in geom["openings"]),
+        "raeume": any(r.name and not r.name_assumed for r in plan.rooms),
+        "flaechen": any(r["area_stated"] for r in geom["rooms"]),
+        "ketten": bool(geom["chains"]),
+    }
+    missing = [label for key, label in p["needs"] if not have.get(key)]
+    if not missing:
+        return []
+    return [Issue(id="zweck-fehlt", severity="pruefen", category="Verwendungszweck",
+                  title=f"Für {p['label']} fehlt: {', '.join(missing)}",
+                  detail=("Davon wurde im Plan nichts erkannt. Entweder enthält der Plan es nicht, dann gehört die Begründung in den Bericht, "
+                          "oder es wurde übersehen."),
+                  action="Im Original prüfen. Fehlt es nur in der Erkennung: Hinweis zum Plan eintragen und Analyse wiederholen.")]
+
+
+CHECKLIST = [
+    ("ketten", "Jede Maßkette geht rechnerisch auf", ("konflikt-",)),
+    ("geometrie", "Keine entartete Geometrie (Dicke, Länge, Fläche 0)", ("geometrie-entartet",)),
+    ("wanddicken", "Wanddicken im plausiblen Bereich und je Wandtyp einheitlich", ("wanddicke-",)),
+    ("kontur", "Außenkontur geschlossen", ("kontur-",)),
+    ("oeffnungen", "Jede Innenwandöffnung ist Tür oder Durchgang", ("luecke-",)),
+    ("zweck", "Inhalte für den Verwendungszweck vorhanden", ("zweck-",)),
+]
+
+
+def export_checklist(issues: list[Issue], purpose: str | None) -> list[dict]:
+    """Selbstprüfung vor dem Export (Regel 7): je Punkt bestanden oder nicht, mit den auslösenden Prüfpunkten."""
+    out = []
+    for key, title, prefixes in CHECKLIST:
+        hits = [i for i in issues if any(i.id.startswith(p) for p in prefixes) and i.severity != "info"]
+        if key == "zweck":
+            title = f"Inhalte für {purpose_label(purpose)} vorhanden" if purpose else "Verwendungszweck nicht festgelegt"
+        out.append({"id": key, "title": title, "ok": not hits, "detail": "; ".join(h.title for h in hits[:3]),
+                    "issues": [h.id for h in hits]})
+    return out
+
+
 SEV = {"kritisch": 0, "pruefen": 1, "info": 2}
 
 
-def run_checks(plan: PlanModel, sol: Solution, geom: dict) -> list[Issue]:
-    issues = (conflict_issues(plan, sol, geom) + room_issues(plan, sol, geom) + determinacy_issues(plan, sol, geom)
-              + door_issues(plan, geom) + drawing_issues(plan, sol) + plausibility_issues(plan, sol, geom) + ai_issues(plan, sol))
-    issues.sort(key=lambda i: (SEV.get(i.severity, 3), i.source != "Solver"))
+def run_checks(plan: PlanModel, sol: Solution, geom: dict, purpose: str | None = None) -> list[Issue]:
+    issues = (conflict_issues(plan, sol, geom) + geometry_issues(geom) + room_issues(plan, sol, geom) + determinacy_issues(plan, sol, geom)
+              + door_issues(plan, geom) + drawing_issues(plan, sol) + plausibility_issues(plan, sol, geom) + thickness_issues(plan, sol, geom)
+              + contour_issues(geom) + purpose_issues(plan, geom, purpose) + ai_issues(plan, sol))
+    rank = PURPOSES.get(purpose or "", {}).get("rank", [])  # Prüfpunkte nach Bedeutung für den Verwendungszweck
+    issues.sort(key=lambda i: (SEV.get(i.severity, 3), rank.index(i.category) if i.category in rank else len(rank), i.source != "Solver"))
     return issues

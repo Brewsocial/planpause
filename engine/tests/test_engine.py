@@ -118,7 +118,11 @@ def test_dxf_export_lesbar(bungalow):
     layers = {l.dxf.name for l in doc.layers}
     assert {"WAENDE", "BRANDWAND", "TUEREN", "FENSTER", "BEMASSUNG"} <= layers
     assert doc.header["$INSUNITS"] == 4
-    assert len(doc.modelspace().query("HATCH")) >= 40
+    msp = doc.modelspace()
+    # Wände verbunden: ein Polygonzug je zusammenhängendem Wandstück, nicht je Rechteck; eine Schraffur je Layer
+    walls = msp.query('LWPOLYLINE[layer=="WAENDE"]')
+    assert 0 < len(walls) < len(r["geometry"]["walls"])
+    assert len(msp.query('HATCH[layer=="WAENDE"]')) == 1
 
 
 def test_ifc_export_gueltiges_bestandsmodell(bungalow, tmp_path):
@@ -424,3 +428,46 @@ def test_pdf_seite_und_ausschnitt():
     assert prep.size[0] == prep.image.shape[1] and "Ausschnitt gewählt" in prep.steps
     with pytest.raises(ValueError):
         render_page(data, 3)
+
+
+# ------------------------------------------------------------- Qualitätsregeln
+def test_wandvereinigung():
+    from planpause_engine.export import union_outlines
+    assert union_outlines([[0, 0, 100, 20], [0, 0, 20, 100]]) == [[(0, 0), (100, 0), (100, 20), (20, 20), (20, 100), (0, 100)]]
+    ring = union_outlines([[0, 0, 100, 20], [0, 80, 100, 100], [0, 0, 20, 100], [80, 0, 100, 100]])
+    assert sorted(len(l) for l in ring) == [4, 4]  # Außenrand und Loch
+    assert union_outlines([]) == []
+
+
+def test_offene_kontur_und_luecke_ohne_tuer(bungalow):
+    from planpause_engine.checks import contour_issues, geometry_issues
+    g = analyze(bungalow)["geometry"]
+    assert not [i for i in contour_issues(g) if i.severity != "info"]
+    # Außenwand um 60 cm kürzen: Lücke ohne Fenster
+    g2 = copy.deepcopy(g)
+    w = next(w for w in g2["walls"] if w["kind"] == "aussen" and w["rect"][2] - w["rect"][0] > 300)
+    w["rect"][2] -= 60
+    ids = [i.id for i in contour_issues(g2)]
+    assert any(i.startswith("kontur-") and i != "kontur-frei" for i in ids)
+    # Innenwand mit türbreiter Lücke ohne Tür
+    g3 = {"walls": [{"rect": [0, 0, 300, 12], "kind": "innen", "estimated": False},
+                    {"rect": [390, 0, 600, 12], "kind": "innen", "estimated": False}], "openings": [], "features": []}
+    assert [i.id for i in contour_issues(g3)] == ["luecke-0"]
+    g3["openings"] = [{"rect": [300, 0, 390, 12], "type": "door"}]
+    assert contour_issues(g3) == []
+    # entartete Geometrie
+    g4 = {"walls": [{"rect": [0, 0, 300, 0], "kind": "innen"}], "openings": [], "features": [], "rooms": []}
+    assert geometry_issues(g4)[0].severity == "kritisch"
+
+
+def test_verwendungszweck_und_checkliste(bungalow):
+    r = analyze(bungalow, "brandschutz")
+    assert r["purpose"] == "brandschutz"
+    z = next(i for i in r["issues"] if i["id"] == "zweck-fehlt")
+    assert "Brandschutz" in z["title"]
+    cl = {c["id"]: c for c in r["checklist"]}
+    assert cl["zweck"]["ok"] is False and cl["kontur"]["ok"] is True and cl["geometrie"]["ok"] is True
+    assert analyze(bungalow)["checklist"][-1]["title"] == "Verwendungszweck nicht festgelegt"
+    md = to_report("B", r["geometry"], issues_from(r), checklist=r["checklist"], purpose="brandschutz",
+                   annotations=[{"kind": "handschriftlich", "text": "Wand 1978 entfernt"}])
+    assert "## Prüfung vor dem Export" in md and "✘" in md and "Wand 1978 entfernt" in md and "## Geschätzte Bauteile" in md

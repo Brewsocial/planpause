@@ -128,7 +128,7 @@ def test_analyse_nutzt_gespeichertes_bild_unveraendert(client, monkeypatch):
     pid = client.post("/projects", headers=H, files={"file": ("plan.jpg", io.BytesIO(cv2.imencode(".jpg", img)[1].tobytes()), "image/jpeg")}).json()["id"]
     stored = cv2.imdecode(np.frombuffer(main.store.read_bytes("demo-betrieb", pid, "prepared.jpg"), np.uint8), cv2.IMREAD_GRAYSCALE)
     seen = {}
-    def fake_extract(prep, notes=""):
+    def fake_extract(prep, notes="", purpose=None):
         seen["size"] = prep.size
         raise RuntimeError("stopp")
     monkeypatch.setattr(ex, "extract_plan", fake_extract)
@@ -155,9 +155,9 @@ def test_kosten_werden_am_projekt_summiert(client, monkeypatch):
     from planpause_engine.model import PlanModel
     plan = PlanModel.model_validate(json.loads((main.FIXTURES / "plan_bungalow.json").read_text()))
     pid = client.post("/projects/demo/bungalow", headers=H).json()["id"]
-    monkeypatch.setattr(ex, "extract_plan", lambda prep, notes="": (plan, {"cost_usd": 0.31, "rounds": []}))
+    monkeypatch.setattr(ex, "extract_plan", lambda prep, notes="", purpose=None: (plan, {"cost_usd": 0.31, "rounds": []}))
     main._run_extraction("demo-betrieb", pid)
-    def fail(prep, notes=""):
+    def fail(prep, notes="", purpose=None):
         raise ex.ExtractionError("abgeschnitten", {"cost_usd": 1.33, "rounds": []})
     monkeypatch.setattr(ex, "extract_plan", fail)
     main._run_extraction("demo-betrieb", pid)
@@ -218,6 +218,18 @@ def test_projekt_mit_grundrissen_und_geschoss(client):
     assert ifc.status_code == 200 and "Haus_Lindenweg_4_EG.ifc" in ifc.headers["content-disposition"]
     assert {e["storey"] for e in client.get(f"/folders/{fid}/floors/EG/model", headers=H).json()} == {"EG"}
     assert client.get(f"/folders/{fid}/floors/OG/geometry", headers=H).status_code == 404
+
+    # Verwendungszweck am Projekt: steuert Prüfung, Checkliste und Bericht aller Grundrisse
+    assert client.patch(f"/folders/{fid}", headers=H, json={"purpose": "kochen"}).status_code == 422
+    assert client.patch(f"/folders/{fid}", headers=H, json={"purpose": "brandschutz"}).json()["purpose"] == "brandschutz"
+    res = client.get(f"/projects/{a['id']}", headers=H).json()["result"]
+    assert res["purpose"] == "brandschutz" and any(i["id"] == "zweck-fehlt" for i in res["issues"])
+    cl = {c["id"]: c["ok"] for c in res["checklist"]}
+    assert cl["geometrie"] and cl["kontur"] and not cl["zweck"]
+    md = client.get(f"/projects/{a['id']}/export/md", headers=H).text
+    assert "## Prüfung vor dem Export" in md and "Verwendungszweck: Brandschutz" in md
+    assert client.patch(f"/folders/{fid}", headers=H, json={"purpose": ""}).json().get("purpose") is None
+    assert client.get(f"/projects/{a['id']}", headers=H).json()["result"]["purpose"] is None
 
 
 def test_upload_in_projekt_und_verschieben(client):
@@ -358,6 +370,11 @@ def test_gebaeude_in_3d_geschosse_stapeln(client, tmp_path):
     assert any(m["type"] == "IfcSlab" and m["kind"] == "BASESLAB" and m["storey"] == "KG" for m in meshes)
     assert any(m["type"] == "IfcSlab" and m["kind"] == "FLOOR" and m["storey"] == "EG 2" for m in meshes)
     assert {m["kind"] for m in meshes if m["type"] == "IfcWall"} == {"aussen", "innen"}
+
+    # Geschosse als ein Gebäude: Außenwände müssen übereinanderliegen (KG und EG sind hier verschiedene Häuser)
+    chk = client.get(f"/folders/{fid}/building/checks", headers=H).json()
+    assert [(p["lower"], p["upper"]) for p in chk["pairs"]] == [("KG", "EG")]
+    assert chk["pairs"][0]["unmatched"] > 0 and not chk["pairs"][0]["ok"] and chk["tolerance_cm"] == 2
 
     ifc = client.get(f"/folders/{fid}/building/export/ifc", headers=H)
     assert ifc.status_code == 200 and "Punkthaus_gebaeude.ifc" in ifc.headers["content-disposition"]

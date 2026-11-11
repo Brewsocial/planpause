@@ -1,5 +1,5 @@
 import { supabase } from "./supabase";
-import type { Folder, Meta, Placement, Project, Result } from "./types";
+import type { Folder, Meta, Placement, Project, Result, StoreyCheck } from "./types";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "";  // leer: API unter derselben Adresse wie die Web-App
 const KEY = process.env.NEXT_PUBLIC_API_KEY ?? "demo-schluessel";
@@ -41,6 +41,7 @@ export const api = {
     call<{ org: string; trial_left: number }>("/signup", { method: "POST", ...json(body) }),
   model: (path: string, height?: number) => call<ModelMesh[]>(height === undefined ? path : `${path}?height=${Math.round(height * 100)}`),
   building: (id: string) => call<Building>(`/folders/${id}/building`),
+  buildingChecks: (id: string) => call<{ pairs: StoreyCheck[]; tolerance_cm: number }>(`/folders/${id}/building/checks`),
   saveBuilding: (id: string, b: { floors: Record<string, { height: number; repeat: number }>; roof: boolean; north: number | null }) =>
     call<Building>(`/folders/${id}/building`, { method: "PUT", ...json(b) }),
   list: () => call<Meta[]>("/projects"),
@@ -63,7 +64,7 @@ export const api = {
   folders: () => call<{ folders: Folder[]; unassigned: Meta[] }>("/folders"),
   folder: (id: string) => call<{ folder: Folder; plans: Meta[]; floors: string[] }>(`/folders/${id}`),
   createFolder: (name: string) => call<Folder>("/folders", { method: "POST", ...json({ name }) }),
-  patchFolder: (id: string, body: { name?: string; assembly?: Record<string, Record<string, Placement>> }) =>
+  patchFolder: (id: string, body: { name?: string; purpose?: string; assembly?: Record<string, Record<string, Placement>> }) =>
     call<Folder>(`/folders/${id}`, { method: "PATCH", ...json(body) }),
   removeFolder: (id: string) => call<{ ok: boolean }>(`/folders/${id}`, { method: "DELETE" }),
   floorParts: (id: string, floor: string) =>

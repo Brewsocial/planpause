@@ -244,7 +244,7 @@ export default function PlanPage() {
                 <thead><tr><th>Raum</th><th style={{ textAlign: "right" }}>Plan m²</th><th style={{ textAlign: "right" }}>aus Maßen m²</th><th>Status</th></tr></thead>
                 <tbody>{result.geometry.rooms.map((r, k) => {
                   const dev = r.area_geom != null && r.area_stated ? (r.area_geom - r.area_stated) / r.area_stated : null;
-                  return (<tr key={k}><td><b>{r.name}</b>{r.estimated && <span className="hint"> · Lage geschätzt</span>}</td>
+                  return (<tr key={k}><td><b>{r.name}</b>{r.name_assumed && <span className="hint"> · Name ergänzt</span>}{r.estimated && <span className="hint"> · Lage geschätzt</span>}</td>
                     <td className="n">{fmt(r.area_stated, 2)}</td><td className="n">{fmt(r.area_geom, 2)}</td>
                     <td>{dev == null ? <span className="state">nicht prüfbar</span> : Math.abs(dev) <= 0.03 ? <span className="state ok">bestätigt</span>
                       : <span className={`state ${Math.abs(dev) > 0.1 ? "crit" : "warn"}`}>{dev > 0 ? "+" : ""}{fmt(dev * 100, 1)} %</span>}</td></tr>);
@@ -256,7 +256,28 @@ export default function PlanPage() {
 
           {tab === "export" && (
             <div className="pane">
-              <p>Die DXF enthält Layer für Wände, Brandwände, Fenster, Türen, Tore, Treppe, Räume, Bemaßung und Prüfpunkte. Fenster, Türen und Tore sind Blöcke: jedes ein Objekt, mit Breite, Höhe und Brüstung als Attribute. Bemaßung in cm, bemessen für 1:100. Geschätzte Wände liegen zusätzlich auf dem Layer GESCHAETZT.</p>
+              {result.checklist && (
+                <div>
+                  <h3 style={{ margin: "0 0 6px", fontSize: 17 }}>Prüfung vor dem Export</h3>
+                  <ul style={{ margin: 0, paddingLeft: 0, listStyle: "none", display: "grid", gap: 4 }} aria-label="Prüfung vor dem Export">
+                    {result.checklist.map((c) => (
+                      <li key={c.id} className={`state ${c.ok ? "ok" : "warn"}`} style={{ fontSize: 14 }}>
+                        {c.ok ? "✔" : "✘"} {c.title}{!c.ok && c.detail && <span className="hint"> – {c.detail}</span>}
+                      </li>))}
+                  </ul>
+                  {result.checklist.some((c) => !c.ok) ? (
+                    <p className="hint" style={{ margin: "6px 0 0" }}>Nicht bestandene Punkte stehen als Prüfpunkte im Plan und im Prüfbericht. Export ist möglich, der Plan gilt aber bis zur Klärung nicht als freigegeben.</p>
+                  ) : <p className="hint" style={{ margin: "6px 0 0" }}>Alle Punkte bestanden.</p>}
+                </div>)}
+              {!!result.annotations?.length && (
+                <div>
+                  <h3 style={{ margin: "0 0 6px", fontSize: 17 }}>Im Plan vermerkt, nicht gezeichnet</h3>
+                  <ul style={{ margin: 0, paddingLeft: 18, fontSize: 14 }}>
+                    {result.annotations.map((a, i) => <li key={i}><span className="hint">{({ handschriftlich: "handschriftlich", stempel: "Stempel", hoehenkote: "Höhenkote", schraffur: "Schraffur", sonstiges: "Vermerk" })[a.kind]}:</span> {a.text}</li>)}
+                  </ul>
+                  <p className="hint" style={{ margin: "6px 0 0" }}>Diese Angaben stehen im Prüfbericht, nicht in DXF und IFC.</p>
+                </div>)}
+              <p>Die DXF enthält Layer für Wände, Brandwände, Fenster, Türen, Tore, Treppe, Räume, Bemaßung und Prüfpunkte. Wände sind an den Stößen verbunden: ein Polygonzug je Wandstück, nicht lauter Einzelrechtecke. Fenster, Türen und Tore sind Blöcke: jedes ein Objekt, mit Breite, Höhe und Brüstung als Attribute. Bemaßung in cm, bemessen für 1:100. Geschätzte Wände liegen zusätzlich auf dem Layer GESCHAETZT.</p>
               <label className="check">DXF-Einheit
                 <select value={unit} onChange={(e) => setUnit(e.target.value as typeof unit)}>
                   <option value="mm">Millimeter</option><option value="cm">Zentimeter</option><option value="m">Meter</option>
