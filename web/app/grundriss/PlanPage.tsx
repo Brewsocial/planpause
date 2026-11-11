@@ -256,19 +256,6 @@ export default function PlanPage() {
 
           {tab === "export" && (
             <div className="pane">
-              {result.checklist && (
-                <div>
-                  <h3 style={{ margin: "0 0 6px", fontSize: 17 }}>Prüfung vor dem Export</h3>
-                  <ul style={{ margin: 0, paddingLeft: 0, listStyle: "none", display: "grid", gap: 4 }} aria-label="Prüfung vor dem Export">
-                    {result.checklist.map((c) => (
-                      <li key={c.id} className={`state ${c.ok ? "ok" : "warn"}`} style={{ fontSize: 14 }}>
-                        {c.ok ? "✔" : "✘"} {c.title}{!c.ok && c.detail && <span className="hint"> – {c.detail}</span>}
-                      </li>))}
-                  </ul>
-                  {result.checklist.some((c) => !c.ok) ? (
-                    <p className="hint" style={{ margin: "6px 0 0" }}>Nicht bestandene Punkte stehen als Prüfpunkte im Plan und im Prüfbericht. Export ist möglich, der Plan gilt aber bis zur Klärung nicht als freigegeben.</p>
-                  ) : <p className="hint" style={{ margin: "6px 0 0" }}>Alle Punkte bestanden.</p>}
-                </div>)}
               {!!result.annotations?.length && (
                 <div>
                   <h3 style={{ margin: "0 0 6px", fontSize: 17 }}>Im Plan vermerkt, nicht gezeichnet</h3>
