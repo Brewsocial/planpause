@@ -11,8 +11,8 @@ const inter = localFont({ src: "./fonts/inter-latin-wght-normal.woff2", weight: 
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: { default: "Planpause", template: "%s · Planpause" },
-  description: "Bestandsgrundrisse digitalisieren: Foto, Scan oder PDF hochladen und eine maßhaltige DXF aus den Maßketten erhalten.",
+  title: { default: "Planpause – Alte Pläne, digitalisiert", template: "%s · Planpause" },
+  description: "Alte Pläne, digitalisiert: Foto, Scan oder PDF hochladen und eine DXF mit Prüfbericht erhalten.",
 };
 // Immer hell, auch wenn das Handy im Dunkelmodus ist (wie die KiCO-Website)
 export const viewport: Viewport = { themeColor: "#f5f5f7", colorScheme: "light" };
@@ -24,7 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div className="wrap">
           <header className="top">
             <div className="top-in">
-              <Link href="/" className="brand"><b>Planpause</b><span>Bestandsplan → CAD</span></Link>
+              <Link href="/" className="brand"><b>Planpause</b><span>Alte Pläne, digitalisiert</span></Link>
               <div className="spacer" />
               <Account />
             </div>

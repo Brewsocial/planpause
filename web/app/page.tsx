@@ -3,12 +3,12 @@ import LandingModel from "@/components/LandingModel";
 import { CadPlan, PaperPlan } from "@/components/PlanSketch";
 import { SITE_URL } from "@/lib/site";
 
-const TITLE = "Grundriss digitalisieren: Foto oder PDF in DXF umwandeln";
+const TITLE = "Alte Pläne, digitalisiert";
 const DESCRIPTION =
-  "Planpause macht aus alten Papiergrundrissen maßhaltige DXF-Dateien. Foto, Scan oder PDF hochladen: Wände, Fenster, Türen und Räume werden aus den Maßketten berechnet, nicht nur abgepaust. In Minuten statt Stunden.";
+  "Grundriss digitalisieren: Planpause macht aus alten Papiergrundrissen DXF-Dateien. Foto, Scan oder PDF hochladen: Wände, Fenster, Türen und Räume werden aus den Maßketten berechnet, nicht nur abgepaust, und Unstimmigkeiten werden markiert.";
 
 export const metadata: Metadata = {
-  title: { absolute: `Planpause · ${TITLE}` },
+  title: { absolute: `Planpause – ${TITLE}` },
   description: DESCRIPTION,
   alternates: { canonical: "/" },
   openGraph: { type: "website", locale: "de_DE", url: "/", siteName: "Planpause", title: TITLE, description: DESCRIPTION },
