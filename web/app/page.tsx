@@ -115,9 +115,9 @@ export default function Landing() {
           </p>
         </div>
         <div className="lp-stats">
-          <div className="sheet lp-stat"><b>bis zu 85 %*</b><span>weniger Zeitaufwand</span></div>
-          <div className="sheet lp-stat"><b>bis zu 60 %*</b><span>geringere Kosten</span></div>
-          <p className="hint lp-stat-note">* Werbeaussage, keine Zusicherung. Beispielrechnung auf Grundlage eigener Schätzungen, nicht gemessen: Das Nachzeichnen eines Geschosses von Hand dauert etwa 1,5 bis 2,5 Stunden, bei 60 € Stundensatz rund 110 €. Mit Planpause 20 € plus rund 15 Minuten zum Prüfen. Tatsächliche Einsparungen hängen von Plan, Qualität der Vorlage und Größe ab und können geringer ausfallen.</p>
+          <div className="sheet lp-stat"><b>bis zu 85 %<sup>*</sup></b><span>weniger Zeitaufwand</span></div>
+          <div className="sheet lp-stat"><b>bis zu 60 %<sup>*</sup></b><span>geringere Kosten</span></div>
+          <p className="hint lp-stat-note"><sup>*</sup> Werbeaussage, keine Zusicherung. Beispielrechnung auf Grundlage eigener Schätzungen, nicht gemessen: Das Nachzeichnen eines Geschosses von Hand dauert etwa 1,5 bis 2,5 Stunden, bei 60 € Stundensatz rund 110 €. Mit Planpause 20 € plus rund 15 Minuten zum Prüfen. Tatsächliche Einsparungen hängen von Plan, Qualität der Vorlage und Größe ab und können geringer ausfallen.</p>
         </div>
       </section>
 

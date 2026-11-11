@@ -341,7 +341,9 @@ footer.foot a { color: var(--muted) }
 .lp-stat { padding: 24px 26px; display: grid; gap: 4px }
 .lp-stat b { font-size: clamp(30px, 5vw, 44px); font-weight: 700; letter-spacing: -.04em; line-height: 1; color: var(--accent) }
 .lp-stat span { font-size: 16px; font-weight: 600 }
-.lp-stat-note { grid-column: 1 / -1; margin: 0 }
+.lp-stat-note { grid-column: 1 / -1; margin: 0; font-size: 11px; line-height: 1.45 }
+.lp-stat b sup { font-size: .35em; font-weight: 600; vertical-align: super; line-height: 0; margin-left: 2px }
+.lp-stat-note sup { font-size: .8em }
 @media (max-width: 560px) { .lp-stats { grid-template-columns: 1fr 1fr; gap: 10px } .lp-stat { padding: 18px } .lp-stat span { font-size: 14px } }
 .lp-prices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; max-width: 860px }
 .lp-price { padding: clamp(24px, 3vw, 32px) }
