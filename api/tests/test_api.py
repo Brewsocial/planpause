@@ -404,3 +404,15 @@ def test_gebaeude_in_3d_geschosse_stapeln(client, tmp_path):
 
     old = client.get(f"/folders/{fid}/building/export/ifc?schema=IFC2X3", headers=H)
     assert "_gebaeude_ifc2x3.ifc" in old.headers["content-disposition"] and b"FILE_SCHEMA(('IFC2X3'))" in old.content
+
+
+def test_registrierung_speichert_agb_zustimmung(client, monkeypatch):
+    import app.main as main
+    seen = {}
+    monkeypatch.setattr(main, "SUPABASE", True)
+    monkeypatch.setattr(main.store, "signup", lambda *a, **k: seen.update(k), raising=False)
+    monkeypatch.setattr(main.store, "orgs_created_since", lambda t: 0, raising=False)
+    body = {"email": "a@b.de", "password": "geheim123", "company": "X GmbH", "business": True}
+    assert client.post("/signup", json={**body, "terms": False}).status_code == 400
+    assert client.post("/signup", json={**body, "terms": True}).status_code == 200
+    assert seen["terms"]["version"] == main.TERMS_VERSION and seen["terms"]["accepted_at"] > 1.7e9

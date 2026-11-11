@@ -98,10 +98,11 @@ class SupabaseStore:
         since = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(ts))
         return len(self._rest("GET", "orgs", {"created_at": f"gte.{since}", "select": "id"}))
 
-    def signup(self, org: str, name: str, email: str, password: str, trial: int, private: bool = False) -> None:
+    def signup(self, org: str, name: str, email: str, password: str, trial: int, private: bool = False, terms: dict | None = None) -> None:
         """Selbst-Registrierung: Konto über die Admin-Schnittstelle anlegen (die Registrierung des
         Supabase-Projekts bleibt aus, sie gehört einer anderen App), dazu ein eigener Probe-Betrieb."""
-        r = self.http.post("/auth/v1/admin/users", json={"email": email, "password": password, "email_confirm": True})
+        r = self.http.post("/auth/v1/admin/users", json={"email": email, "password": password, "email_confirm": True,
+                                                                  "user_metadata": {"terms": terms} if terms else {}})  # Nachweis der AGB-Zustimmung
         if r.status_code in (409, 422) and any(w in r.text.lower() for w in ("already", "exists", "registered")):
             raise UserExists(email)
         r.raise_for_status()

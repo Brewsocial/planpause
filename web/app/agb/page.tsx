@@ -11,7 +11,7 @@ export default function Agb() {
       <p className="hint">Stand: {LEGAL.updated}</p>
 
       <h2>§ 1 Geltungsbereich und Anbieter</h2>
-      <p>Diese Bedingungen gelten für alle Verträge über die Nutzung von {LEGAL.product} zwischen {LEGAL.name}, {LEGAL.street},
+      <p>Diese Bedingungen gelten für alle Verträge über die Nutzung von {LEGAL.product} zwischen {LEGAL.legalName}, {LEGAL.street},
         {" "}{LEGAL.zipCity} (im Folgenden „wir“) und unseren Kunden. Kunden können Verbraucher (§ 13 BGB) oder Unternehmer
         (§ 14 BGB) sein. Regelungen, die nur für eine dieser Gruppen gelten, sind als solche gekennzeichnet.</p>
       <p>Gegenüber Unternehmern gelten abweichende Bedingungen des Kunden nur, wenn wir ihnen ausdrücklich schriftlich zustimmen.</p>
@@ -83,7 +83,7 @@ export default function Agb() {
       <h3>Widerrufsbelehrung</h3>
       <p><b>Widerrufsrecht.</b> Sie haben das Recht, binnen vierzehn Tagen ohne Angabe von Gründen diesen Vertrag zu widerrufen.
         Die Widerrufsfrist beträgt vierzehn Tage ab dem Tag des Vertragsabschlusses.</p>
-      <p>Um Ihr Widerrufsrecht auszuüben, müssen Sie uns ({LEGAL.name}, {LEGAL.street}, {LEGAL.zipCity}, Telefon {LEGAL.phone},
+      <p>Um Ihr Widerrufsrecht auszuüben, müssen Sie uns ({LEGAL.legalName}, {LEGAL.street}, {LEGAL.zipCity}, Telefon {LEGAL.phone},
         E-Mail {mail}) mittels einer eindeutigen Erklärung (z. B. ein mit der Post versandter Brief oder eine E-Mail) über Ihren
         Entschluss, diesen Vertrag zu widerrufen, informieren. Sie können dafür das unten stehende Muster-Widerrufsformular
         verwenden, das jedoch nicht vorgeschrieben ist. Zur Wahrung der Widerrufsfrist reicht es aus, dass Sie die Mitteilung über
@@ -104,7 +104,7 @@ export default function Agb() {
 
       <h3>Muster-Widerrufsformular</h3>
       <p>(Wenn Sie den Vertrag widerrufen wollen, dann füllen Sie bitte dieses Formular aus und senden Sie es zurück.)</p>
-      <p>An {LEGAL.name}, {LEGAL.street}, {LEGAL.zipCity}, E-Mail {mail}:<br />
+      <p>An {LEGAL.legalName}, {LEGAL.street}, {LEGAL.zipCity}, E-Mail {mail}:<br />
         Hiermit widerrufe(n) ich/wir (*) den von mir/uns (*) abgeschlossenen Vertrag über die Erbringung der folgenden
         Dienstleistung (*): ______<br />
         Bestellt am (*): ______<br />

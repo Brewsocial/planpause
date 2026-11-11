@@ -13,7 +13,7 @@ export default function Datenschutz() {
       <p className="hint">Stand: {LEGAL.updated}</p>
 
       <h2>1. Verantwortlicher (Art. 13 DSGVO)</h2>
-      <p>{LEGAL.name}<br />{LEGAL.street}<br />{LEGAL.zipCity}<br />{LEGAL.country}<br />E-Mail: {mail}</p>
+      <p>{LEGAL.legalName}<br />{LEGAL.street}<br />{LEGAL.zipCity}<br />{LEGAL.country}<br />E-Mail: {mail}</p>
       <p>Ein Datenschutzbeauftragter ist nicht bestellt, da die gesetzlichen Voraussetzungen (Art. 37 DSGVO, § 38 BDSG) nicht vorliegen.</p>
 
       <h2>2. Worum es geht</h2>
@@ -29,7 +29,7 @@ export default function Datenschutz() {
         vom Anwendungsserver kurzzeitig in Protokolldateien erfasst.</p>
       <p>Zweck: Bereitstellung der Anwendung, technische Sicherheit, Fehlerbehebung<br />
         Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse)<br />
-        Speicherdauer: <Check>Aufbewahrungsdauer der Server-Protokolle festlegen, z. B. 7 Tage</Check></p>
+        Speicherdauer: Server-Protokolle werden nach 14 Tagen gelöscht.</p>
 
       <h3>b) Benutzerkonto</h3>
       <p>Für die Nutzung ist ein Konto erforderlich, das Sie selbst registrieren oder das wir auf Einladung anlegen. Verarbeitet werden: Name des Betriebs, E-Mail-Adresse, Passwort
@@ -48,8 +48,8 @@ export default function Datenschutz() {
         Unterschriften. Bitte laden Sie nur Pläne hoch, zu deren Verarbeitung Sie berechtigt sind, und decken Sie nicht benötigte
         Angaben nach Möglichkeit ab.</p>
       <p>Zweck: Digitalisierung und Prüfung der Pläne<br />
-        Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO; soweit Daten Dritter enthalten sind, Art. 6 Abs. 1 lit. f DSGVO
-        <Check>Rechtsgrundlage für Daten Dritter in Plänen und Rolle als Auftragsverarbeiter für Betriebe (siehe Punkt 5)</Check></p>
+        Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO; soweit Daten Dritter enthalten sind, Art. 6 Abs. 1 lit. f DSGVO (Interesse an der
+        Erbringung der Leistung für unsere Kunden). Für Betriebe, die Pläne ihrer Kunden hochladen, siehe Punkt 5.</p>
 
       <h3>d) Auswertung mit künstlicher Intelligenz</h3>
       <p>Zum Auslesen der Pläne wird das aufbereitete Bild zusammen mit den Hinweisen zum Plan an die Programmierschnittstelle
@@ -69,44 +69,44 @@ export default function Datenschutz() {
       <h3>a) Supabase (Anmeldung, Datenbank, Dateispeicher)</h3>
       <p>Anbieter: Supabase Inc., 970 Trestle Glen Rd, Oakland, CA 94610, USA<br />
         Verarbeitungstätigkeit: Benutzerkonten, Projektdaten, hochgeladene Bilder und Ergebnisse<br />
-        Speicherort: <Check>Region des Supabase-Projekts, z. B. EU (Frankfurt)</Check><br />
-        Auftragsverarbeitung: Vertrag nach Art. 28 DSGVO <Check>AV-Vertrag mit Supabase abgeschlossen</Check><br />
+        Speicherort: Rechenzentrum in der Europäischen Union<br />
+        Auftragsverarbeitung: Vertrag nach Art. 28 DSGVO abgeschlossen<br />
         Drittlandtransfer: Soweit eine Übermittlung in die USA stattfindet (z. B. Support-Zugriffe), erfolgt sie auf Grundlage der
         EU-Standardvertragsklauseln gemäß Art. 46 Abs. 2 lit. c DSGVO.<br />
         Datenschutzerklärung: <a href="https://supabase.com/privacy">supabase.com/privacy</a></p>
 
       <h3>b) Anthropic (KI-Auswertung)</h3>
-      <p>Anbieter: Anthropic PBC, 548 Market Street, PMB 90375, San Francisco, CA 94104, USA <Check>Anschrift aus dem AV-Vertrag übernehmen</Check><br />
+      <p>Anbieter: Anthropic Ireland, Limited (Vertragspartner für Kunden im Europäischen Wirtschaftsraum), Konzernmutter Anthropic PBC, San Francisco, USA<br />
         Verarbeitungstätigkeit: Auslesen der hochgeladenen Pläne (siehe Punkt 3 d)<br />
-        Auftragsverarbeitung: Vertrag nach Art. 28 DSGVO <Check>Data Processing Addendum von Anthropic abgeschlossen</Check><br />
-        Nutzung und Speicherdauer beim Anbieter: <Check>laut aktuellen kommerziellen Bedingungen und AV-Vertrag von Anthropic eintragen,
-          insbesondere ob Eingaben zum Training verwendet werden und wie lange sie gespeichert bleiben</Check><br />
-        Drittlandtransfer: Übermittlung in die USA auf Grundlage der EU-Standardvertragsklauseln gemäß Art. 46 Abs. 2 lit. c DSGVO
-        <Check>ob Anthropic nach dem EU-US Data Privacy Framework zertifiziert ist</Check><br />
+        Auftragsverarbeitung: Vertrag nach Art. 28 DSGVO (Data Processing Addendum von Anthropic) abgeschlossen<br />
+        Nutzung und Speicherdauer beim Anbieter: Nach den kommerziellen Bedingungen von Anthropic darf Anthropic Kundeninhalte nicht zum
+        Training seiner Modelle verwenden. Eingaben und Ergebnisse der Schnittstelle werden nach Angaben von Anthropic standardmäßig
+        innerhalb von 30 Tagen gelöscht; bei Verstößen gegen die Nutzungsrichtlinien oder aus rechtlichen Gründen kann sie länger
+        gespeichert werden.<br />
+        Drittlandtransfer: Übermittlung in die USA auf Grundlage der EU-Standardvertragsklauseln gemäß Art. 46 Abs. 2 lit. c DSGVO<br />
         Datenschutzerklärung: <a href="https://www.anthropic.com/legal/privacy">anthropic.com/legal/privacy</a></p>
 
       <h3>c) Cloudflare (Auslieferung und Netzwerk)</h3>
       <p>Anbieter: Cloudflare, Inc., 101 Townsend St., San Francisco, CA 94107, USA<br />
         Verarbeitungstätigkeit: Auslieferung der Anwendung, verschlüsselte Weiterleitung der Anfragen an den Anwendungsserver,
         Schutz vor Angriffen; dabei werden insbesondere IP-Adressen verarbeitet<br />
-        Auftragsverarbeitung: Vertrag nach Art. 28 DSGVO <Check>AV-Vertrag mit Cloudflare abgeschlossen</Check><br />
-        Drittlandtransfer: <Check>Zertifizierung nach dem EU-US Data Privacy Framework bzw. Standardvertragsklauseln</Check><br />
+        Auftragsverarbeitung: Vertrag nach Art. 28 DSGVO (Cloudflare Customer DPA) abgeschlossen<br />
+        Drittlandtransfer: Cloudflare ist nach dem EU-US Data Privacy Framework zertifiziert; ergänzend gelten Standardvertragsklauseln.<br />
         Datenschutzerklärung: <a href="https://www.cloudflare.com/privacypolicy/">cloudflare.com/privacypolicy</a></p>
 
       <h3>d) Anwendungsserver</h3>
       <p>Während der Testphase wird der Anwendungsserver (Bildaufbereitung, Berechnung, Export) vom Verantwortlichen selbst in
-        Deutschland betrieben. <Check>bei Umzug zu einem Hosting-Anbieter hier ergänzen</Check></p>
+        Deutschland betrieben.</p>
 
       <h2>5. Hinweis für Betriebe: Auftragsverarbeitung</h2>
       <p>Laden Betriebe Pläne ihrer Kunden hoch, verarbeiten wir die darin enthaltenen personenbezogenen Daten in ihrem Auftrag.
-        Einen Vertrag zur Auftragsverarbeitung nach Art. 28 DSGVO stellen wir auf Anfrage bereit. <Check>Rollenverteilung und
-        AV-Vertrag mit den testenden Betrieben</Check></p>
+        Einen Vertrag zur Auftragsverarbeitung nach Art. 28 DSGVO stellen wir auf Anfrage bereit; schreiben Sie dazu an {mail}.</p>
 
       <h2>6. Speicherdauer</h2>
       <p>Projekte bleiben gespeichert, bis Sie sie in der Anwendung löschen („Projekt löschen“) oder Ihr Zugang beendet wird. Beim
         Löschen eines Projekts werden die hochgeladenen Bilder, Ergebnisse und Protokolle entfernt. Nach Ende Ihres Zugangs löschen
-        wir Konto und Projektdaten innerhalb von 30 Tagen. <Check>Löschfristen, Backups bei Supabase und gesetzliche
-        Aufbewahrungspflichten</Check></p>
+        wir Konto und Projektdaten innerhalb von 30 Tagen. Rechnungen und Zahlungsbelege bewahren wir, soweit wir dazu gesetzlich
+        verpflichtet sind (bis zu zehn Jahre, § 147 AO), getrennt von den Projektdaten auf.</p>
 
       <h2>7. Ihre Rechte (Art. 15–22 DSGVO)</h2>
       <p>Sie haben jederzeit das Recht auf:</p>

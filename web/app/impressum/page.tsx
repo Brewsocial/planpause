@@ -9,7 +9,7 @@ export default function Impressum() {
       <p>Angaben gemäß § 5 DDG und § 18 Abs. 2 MStV</p>
 
       <h3>Diensteanbieter</h3>
-      <p>{LEGAL.name}<br />{LEGAL.street}<br />{LEGAL.zipCity}<br />{LEGAL.country}</p>
+      <p>{LEGAL.legalName}<br />{LEGAL.street}<br />{LEGAL.zipCity}<br />{LEGAL.country}</p>
 
       <h3>Kontakt</h3>
       <p>Telefon: {LEGAL.phone}<br />E-Mail: <a href={`mailto:${LEGAL.email}`}>{LEGAL.email}</a></p>

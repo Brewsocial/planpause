@@ -140,6 +140,7 @@ class SignupIn(BaseModel):
     terms: bool = False
 
 
+TERMS_VERSION = "2026-11"  # Stand der AGB (web/lib/legal.ts: updated); beim Ändern der AGB mit anheben
 _signups: dict[str, list[float]] = {}  # Anmeldungen je IP-Adresse der letzten Stunde (nur im Speicher)
 
 
@@ -168,7 +169,8 @@ def signup(body: SignupIn, x_planpause_client_ip: str = Header(default="")):
     if not org_id[0].isalnum():
         org_id = "b" + org_id
     try:
-        store.signup(org_id, company, email, body.password, TRIAL_ANALYSES, private=not body.business)
+        store.signup(org_id, company, email, body.password, TRIAL_ANALYSES, private=not body.business,
+                     terms={"accepted_at": int(now), "version": TERMS_VERSION})
     except UserExists:
         raise HTTPException(409, "Für diese E-Mail gibt es schon ein Konto. Bitte melde dich an.")
     except Exception:  # z. B. Datenbankschema noch nicht aktualisiert (supabase/schema.sql)
