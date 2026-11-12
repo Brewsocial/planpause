@@ -52,7 +52,7 @@ const FAQ: [string, string][] = [
   ["Mein Gebäude ist auf mehrere Zeichnungen verteilt. Geht das?",
     "Ja. Ein Projekt fasst alle Pläne eines Gebäudes zusammen. Mehrere Zeichnungen desselben Geschosses, etwa Altbau und Anbau, schiebst du einfach aneinander. Sie rasten an den Außenecken ein und lassen sich als ein gemeinsames DXF exportieren."],
   ["Was kostet ein Grundriss?",
-    "Zum Einführungspreis 20 € pro Grundriss, im 10er-Paket 179 €. Als Kleinunternehmer weisen wir keine Umsatzsteuer aus, die Preise sind Endpreise."],
+    "Zum Einführungspreis 4,99 € pro Grundriss, im 10er-Paket 45 € (4,50 € pro Grundriss). Als Kleinunternehmer weisen wir keine Umsatzsteuer aus, die Preise sind Endpreise."],
   ["Ersetzt Planpause das Aufmaß vor Ort?",
     "Nein. Planpause macht aus einem vorhandenen Plan eine saubere Arbeitsgrundlage. Wo der Plan nichts hergibt oder sich widerspricht, zeigt Planpause das offen an, damit du gezielt nachmessen kannst."],
   ["Wie bekomme ich Zugang?",
@@ -66,7 +66,7 @@ const jsonLd = {
       "@type": "SoftwareApplication", name: "Planpause", url: SITE_URL, applicationCategory: "DesignApplication",
       operatingSystem: "Web", inLanguage: "de", description: DESCRIPTION,
       publisher: { "@type": "Organization", name: "KiCO" },
-      offers: { "@type": "Offer", price: "20.00", priceCurrency: "EUR", description: "Einführungspreis pro Grundriss" },
+      offers: { "@type": "Offer", price: "4.99", priceCurrency: "EUR", description: "Einführungspreis pro Grundriss" },
     },
     {
       "@type": "FAQPage",
@@ -117,7 +117,7 @@ export default function Landing() {
         <div className="lp-stats">
           <div className="sheet lp-stat"><b>bis zu 85 %<sup>*</sup></b><span>weniger Zeitaufwand</span></div>
           <div className="sheet lp-stat"><b>bis zu 60 %<sup>*</sup></b><span>geringere Kosten</span></div>
-          <p className="hint lp-stat-note"><sup>*</sup> Werbeaussage, keine Zusicherung. Beispielrechnung auf Grundlage eigener Schätzungen, nicht gemessen: Das Nachzeichnen eines Geschosses von Hand dauert etwa 1,5 bis 2,5 Stunden, bei 60 € Stundensatz rund 110 €. Mit Planpause 20 € plus rund 15 Minuten zum Prüfen. Tatsächliche Einsparungen hängen von Plan, Qualität der Vorlage und Größe ab und können geringer ausfallen.</p>
+          <p className="hint lp-stat-note"><sup>*</sup> Werbeaussage, keine Zusicherung. Beispielrechnung auf Grundlage eigener Schätzungen, nicht gemessen: Das Nachzeichnen eines Geschosses von Hand dauert etwa 1,5 bis 2,5 Stunden, bei 60 € Stundensatz rund 110 €. Mit Planpause 4,99 € (Einführungspreis) plus rund 15 Minuten zum Prüfen. Tatsächliche Einsparungen hängen von Plan, Qualität der Vorlage und Größe ab und können geringer ausfallen.</p>
         </div>
       </section>
 
@@ -211,7 +211,7 @@ export default function Landing() {
           <div className="sheet lp-price">
             <p className="lp-badge">Einführungspreis</p>
             <h3>Einzelner Grundriss</h3>
-            <p className="lp-amount"><b>20 €</b><span>pro Grundriss</span></p>
+            <p className="lp-amount"><b>4,99 €</b><span>pro Grundriss</span></p>
             <ul>
               <li>Auswertung der Maßketten</li>
               <li>DXF mit Layern und Bemaßung</li>
@@ -222,7 +222,7 @@ export default function Landing() {
           <div className="sheet lp-price lp-price-hi">
             <p className="lp-badge">Für Betriebe</p>
             <h3>10er-Paket</h3>
-            <p className="lp-amount"><b>179 €</b><span>rund 18 € pro Grundriss</span></p>
+            <p className="lp-amount"><b>45 €</b><span>4,50 € pro Grundriss</span></p>
             <ul>
               <li>Alles aus dem Einzelpreis</li>
               <li>Für beliebige Projekte nutzbar</li>
