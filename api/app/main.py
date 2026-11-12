@@ -42,7 +42,7 @@ DAILY_ANALYSES = int(os.environ.get("PLANPAUSE_DAILY_ANALYSES", "20"))
 # Selbst-Registrierung: kostenlose Grundrisse pro neuem Betrieb und Obergrenze neuer Konten pro Tag (Schutz vor Missbrauch)
 TRIAL_ANALYSES = int(os.environ.get("PLANPAUSE_TRIAL_ANALYSES", "2"))
 SIGNUPS_PER_DAY = int(os.environ.get("PLANPAUSE_SIGNUPS_PER_DAY", "25"))
-CONTACT = os.environ.get("PLANPAUSE_CONTACT_EMAIL", "info.brewsocial@gmail.com")
+CONTACT = os.environ.get("PLANPAUSE_CONTACT_EMAIL", "information.kico@gmail.com")
 DEMO = Path(__file__).resolve().parents[1] / "demo"
 FIXTURES = Path(__file__).resolve().parents[2] / "engine" / "tests" / "fixtures"
 DEMOS = {"bungalow": ("plan_bungalow.json", "bungalow.jpg"), "darmstaedter14": ("plan_darmstaedter14.json", "darmstaedter14.jpg")}
