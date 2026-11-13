@@ -41,7 +41,7 @@ export default function Login() {
     setBusy(false);
     if (r.error) {
       setErr(r.error.message === "Invalid login credentials" ? "E-Mail oder Passwort stimmt nicht." :
-             r.error.message.includes("Signups not allowed") ? "Für diese E-Mail gibt es noch kein Konto. Lege unter „Jetzt ausprobieren“ eines an." :
+             r.error.message.includes("Signups not allowed") ? "Für diese E-Mail gibt es noch kein Konto. Lege unter „Jetzt starten“ eines an." :
              r.error.message);
       return;
     }
@@ -59,7 +59,7 @@ export default function Login() {
           <h1 style={{ fontSize: 30 }}>{title}</h1>
           <p className="muted" style={{ margin: "6px 0 0" }}>
             {mode === "setpw" ? "Mindestens 8 Zeichen. Danach meldest du dich mit E-Mail und Passwort an." :
-             <>Noch kein Konto? <a href="/registrieren">Jetzt ausprobieren</a></>}
+             <>Noch kein Konto? <a href="/registrieren">Jetzt starten</a></>}
           </p>
         </div>
         {mode !== "setpw" && (

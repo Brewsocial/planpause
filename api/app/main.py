@@ -41,7 +41,7 @@ else:
     store = Store()
 DAILY_ANALYSES = int(os.environ.get("PLANPAUSE_DAILY_ANALYSES", "20"))
 # Selbst-Registrierung: kostenlose Grundrisse pro neuem Betrieb und Obergrenze neuer Konten pro Tag (Schutz vor Missbrauch)
-TRIAL_ANALYSES = int(os.environ.get("PLANPAUSE_TRIAL_ANALYSES", "2"))
+TRIAL_ANALYSES = int(os.environ.get("PLANPAUSE_TRIAL_ANALYSES", "0"))  # seit 2026-11-13 keine Gratis-Grundrisse mehr
 SIGNUPS_PER_DAY = int(os.environ.get("PLANPAUSE_SIGNUPS_PER_DAY", "25"))
 CONTACT = os.environ.get("PLANPAUSE_CONTACT_EMAIL", "information.kico@gmail.com")
 DEMO = Path(__file__).resolve().parents[1] / "demo"
@@ -798,7 +798,7 @@ def start_analysis(pid: str, bg: BackgroundTasks, body: AnalyzeIn | None = None,
     left = store.trial_left(o)
     if left is not None:
         if left <= 0:
-            raise HTTPException(402, "Dein Guthaben ist aufgebraucht. Unter „Projekte“ kannst du weitere Grundrisse kaufen." if billing.configured()
+            raise HTTPException(402, "Kein Guthaben verfügbar. Unter „Projekte“ kannst du Grundrisse kaufen." if billing.configured()
                                 else f"Deine kostenlosen Grundrisse sind aufgebraucht. Für weitere Grundrisse schreib uns an {CONTACT}.")
         store.set_trial_left(o, left - 1)
     bg.add_task(_run_extraction, o, pid)

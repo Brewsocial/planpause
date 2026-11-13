@@ -53,7 +53,7 @@ export default function Projects() {
       <form className="sheet newplan" onSubmit={create}>
         <div>
           <h1>{welcome ? "Willkommen bei Planpause" : "Neues Projekt"}</h1>
-          <p className="lead">{welcome ? "Dein Konto ist angelegt. Leg jetzt dein erstes Projekt an, z. B. für ein Haus, und lade darin deinen ersten Grundriss hoch." :
+          <p className="lead">{welcome ? "Dein Konto ist angelegt. Leg jetzt dein erstes Projekt an, z. B. für ein Haus, und lade darin deinen ersten Grundriss hoch. Für die Auswertung brauchst du Guthaben, das du unten kaufen kannst." :
             "Ein Projekt bündelt alle Grundrisse eines Gebäudes, auch mehrere Zeichnungen pro Geschoss."}</p>
           {me && <Credits me={me} notice={notice} />}
         </div>

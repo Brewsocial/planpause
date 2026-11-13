@@ -19,8 +19,8 @@ export default function Credits({ me, notice }: { me: Me; notice?: string }) {
 
   return (
     <div className="credits">
-      <p className={left > 0 ? "hint" : "err"} style={{ margin: 0 }}>
-        {left > 0 ? `Noch ${left} Grundriss${left === 1 ? "" : "e"} verfügbar.` : "Dein Guthaben ist aufgebraucht."}
+      <p className="hint" style={{ margin: 0 }}>
+        {left > 0 ? `Noch ${left} Grundriss${left === 1 ? "" : "e"} verfügbar.` : "Kein Guthaben verfügbar. Die Beispiele kannst du auch ohne Guthaben ansehen."}
         {notice && <> <b className="ok">{notice}</b></>}
       </p>
       {me.billing ? (

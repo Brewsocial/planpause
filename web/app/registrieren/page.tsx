@@ -5,7 +5,7 @@ import { useState } from "react";
 import { api } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
 
-/** Selbst-Registrierung (gewerblich oder privat): Konto und eigener Betrieb mit kostenlosen Probe-Grundrissen, danach direkt zum ersten Projekt. */
+/** Selbst-Registrierung (gewerblich oder privat): Konto und eigener Betrieb (ohne Gratis-Grundrisse, Guthaben wird gekauft), danach direkt zum ersten Projekt. */
 export default function Register() {
   const [company, setCompany] = useState("");
   const [email, setEmail] = useState("");
@@ -35,9 +35,9 @@ export default function Register() {
     <main>
       <form className="sheet auth" onSubmit={submit}>
         <div>
-          <h1 style={{ fontSize: 30 }}>Planpause ausprobieren</h1>
+          <h1 style={{ fontSize: 30 }}>Konto anlegen</h1>
           <p className="muted" style={{ margin: "6px 0 0" }}>
-            Konto anlegen, Projekt erstellen, ersten Grundriss hochladen.
+            Konto anlegen, Grundrisse kaufen, ersten Plan hochladen.
           </p>
         </div>
         <div className="seg" aria-label="Kundenart">

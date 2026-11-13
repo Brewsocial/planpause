@@ -56,7 +56,7 @@ const FAQ: [string, string][] = [
   ["Ersetzt Planpause das Aufmaß vor Ort?",
     "Nein. Planpause macht aus einem vorhandenen Plan eine saubere Arbeitsgrundlage. Wo der Plan nichts hergibt oder sich widerspricht, zeigt Planpause das offen an, damit du gezielt nachmessen kannst."],
   ["Wie bekomme ich Zugang?",
-    "Über „Jetzt ausprobieren“ legst du in einer Minute ein Konto für deinen Betrieb an und kannst direkt dein erstes Projekt erstellen."],
+    "Über „Jetzt starten“ legst du in einer Minute ein Konto für deinen Betrieb an und kannst direkt dein erstes Projekt erstellen."],
 ];
 
 const jsonLd = {
@@ -89,7 +89,7 @@ export default function Landing() {
             eine DXF, mit der du im CAD sofort weiterarbeiten kannst.
           </p>
           <div className="lp-cta">
-            <a className="btn primary big" href={TRY}>Jetzt ausprobieren</a>
+            <a className="btn primary big" href={TRY}>Jetzt starten</a>
             <a className="btn ghost big" href="#so-gehts">So funktioniert es</a>
           </div>
           <ul className="lp-facts">
@@ -261,7 +261,7 @@ export default function Landing() {
         <h2>Schick uns deinen nächsten Bestandsplan.</h2>
         <p className="lead">Konto anlegen, Projekt erstellen, Plan hochladen. In wenigen Minuten hast du deine erste DXF.</p>
         <div className="lp-cta">
-          <a className="btn primary big" href={TRY}>Jetzt ausprobieren</a>
+          <a className="btn primary big" href={TRY}>Jetzt starten</a>
           <a className="btn big" href="/login">Ich habe schon ein Konto</a>
         </div>
       </section>
