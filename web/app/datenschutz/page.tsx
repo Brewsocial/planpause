@@ -58,7 +58,17 @@ export default function Datenschutz() {
         Art. 22 DSGVO statt.</p>
       <p>Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO</p>
 
-      <h3>e) Speicherung im Browser</h3>
+      <h3>e) Bezahlung</h3>
+      <p>Kaufen Sie Grundrisse in der Anwendung, leiten wir Sie zum Zahlungsdienstleister Stripe weiter (siehe Punkt 4). Ihre
+        Zahlungsdaten (z. B. Kartennummer) geben Sie nur bei Stripe ein; wir erhalten sie nicht. Wir übermitteln an Stripe Ihre
+        E-Mail-Adresse, das gewählte Paket und eine Kennung Ihres Betriebs und erhalten von Stripe die Bestätigung der Zahlung mit
+        Betrag und Zeitpunkt.</p>
+      <p>Zweck: Abwicklung der Zahlung, Gutschrift des Guthabens, Buchhaltung<br />
+        Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung) und Art. 6 Abs. 1 lit. c DSGVO (steuerrechtliche
+        Aufbewahrungspflichten)<br />
+        Speicherdauer: Zahlungsbelege bis zu zehn Jahre (§ 147 AO), siehe Punkt 6.</p>
+
+      <h3>f) Speicherung im Browser</h3>
       <p>Damit Sie angemeldet bleiben, speichert die Anwendung ein Anmelde-Token im lokalen Speicher Ihres Browsers. Das ist für
         den von Ihnen gewünschten Dienst technisch erforderlich (§ 25 Abs. 2 Nr. 2 TDDDG). Es werden keine Cookies zu Werbe- oder
         Analysezwecken gesetzt, keine Analyse- oder Tracking-Dienste eingesetzt und keine Schriften oder Inhalte von Drittanbietern
@@ -94,7 +104,16 @@ export default function Datenschutz() {
         Drittlandtransfer: Cloudflare ist nach dem EU-US Data Privacy Framework zertifiziert; ergänzend gelten Standardvertragsklauseln.<br />
         Datenschutzerklärung: <a href="https://www.cloudflare.com/privacypolicy/">cloudflare.com/privacypolicy</a></p>
 
-      <h3>d) Anwendungsserver</h3>
+      <h3>d) Stripe (Bezahlung)</h3>
+      <p>Anbieter: Stripe Payments Europe, Limited, 1 Grand Canal Street Lower, Grand Canal Dock, Dublin, D02 H210, Irland<br />
+        Verarbeitungstätigkeit: Abwicklung der Zahlung (siehe Punkt 3 e). Stripe verarbeitet Zahlungsdaten auch in eigener
+        Verantwortung, etwa zur Betrugsprävention und zur Erfüllung gesetzlicher Pflichten; dafür gilt die Datenschutzerklärung von
+        Stripe.<br />
+        Drittlandtransfer: Soweit Daten an die Stripe, Inc. in den USA übermittelt werden, ist diese nach dem EU-US Data Privacy
+        Framework zertifiziert; ergänzend gelten Standardvertragsklauseln.<br />
+        Datenschutzerklärung: <a href="https://stripe.com/de/privacy">stripe.com/de/privacy</a></p>
+
+      <h3>e) Anwendungsserver</h3>
       <p>Während der Testphase wird der Anwendungsserver (Bildaufbereitung, Berechnung, Export) vom Verantwortlichen selbst in
         Deutschland betrieben.</p>
 

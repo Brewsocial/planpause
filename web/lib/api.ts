@@ -34,9 +34,15 @@ export type ModelMesh = { type: string; name: string; storey: string; kind: stri
 export type BuildingFloor = { floor: string; height: number; repeat: number; elevation: number; assumed: boolean };
 export type Building = { floors: BuildingFloor[]; roof: boolean; north: number | null; top: number };
 
+/** Angemeldeter Betrieb; trial_left = verfügbare Grundrisse (null: ohne Begrenzung), billing = Kauf über Stripe möglich */
+export type Me = { org: string; name: string; trial_left: number | null; private: boolean; contact: string; billing: boolean; billing_test: boolean };
+
 export const api = {
   health: () => call<{ ok: boolean; claude: boolean }>("/health"),
-  me: () => call<{ org: string; name: string; trial_left: number | null; private: boolean; contact: string }>("/me"),
+  me: () => call<Me>("/me"),
+  checkout: (pack: "einzel" | "zehn") => call<{ id: string; url: string }>("/billing/checkout", { method: "POST", ...json({ pack }) }),
+  confirmPayment: (session_id: string) =>
+    call<{ paid: boolean; added: number; trial_left: number | null }>("/billing/confirm", { method: "POST", ...json({ session_id }) }),
   signup: (body: { company: string; email: string; password: string; business: boolean; terms: boolean }) =>
     call<{ org: string; trial_left: number }>("/signup", { method: "POST", ...json(body) }),
   model: (path: string, height?: number) => call<ModelMesh[]>(height === undefined ? path : `${path}?height=${Math.round(height * 100)}`),

@@ -16,7 +16,7 @@ import time
 from pathlib import Path
 from typing import Literal
 
-from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, Header, HTTPException, Query, UploadFile
+from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, Header, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse, Response
 from pydantic import BaseModel, Field
@@ -29,6 +29,7 @@ from planpause_engine.pipeline import analyze, issues_from
 from planpause_engine.purpose import PURPOSES
 from planpause_engine.preprocess import Prepared, prepare
 
+from . import billing
 from .storage import NotFound, Store, UserExists
 
 log = logging.getLogger("planpause")
@@ -191,7 +192,82 @@ def health():
 @app.get("/me")
 def me(o: str = Depends(org)):
     return {"org": o, "name": store.org_name(o), "trial_left": store.trial_left(o), "private": store.is_private(o),
-            "contact": CONTACT}
+            "contact": CONTACT, "billing": billing.configured(), "billing_test": billing.test_mode()}
+
+
+# ------------------------------------------------------------------ Bezahlung (Stripe Checkout, siehe billing.py)
+
+PUBLIC_URL = os.environ.get("PLANPAUSE_PUBLIC_URL", "https://planpause.info-brewsocial.workers.dev").rstrip("/")
+
+
+class CheckoutIn(BaseModel):
+    pack: Literal["einzel", "zehn"]
+
+
+def _site(origin: str) -> str:
+    """Rücksprungadresse nach der Zahlung: die Seite, von der der Kauf kam, aber nur bekannte Adressen."""
+    allowed = {PUBLIC_URL, "http://localhost:3000", "http://127.0.0.1:3000"}
+    return origin.rstrip("/") if origin.rstrip("/") in allowed else PUBLIC_URL
+
+
+def _fulfill(session: dict) -> int | None:
+    """Bezahlte Sitzung gutschreiben (genau einmal). Liefert die Zahl der neu gutgeschriebenen Grundrisse."""
+    got = billing.paid_credits(session)
+    if not got:
+        return None
+    o, credits = got
+    if not store.record_payment(session["id"], o, credits, int(session.get("amount_total") or 0)):
+        return 0  # schon gutgeschrieben
+    left = store.trial_left(o)
+    if left is not None:  # None: Betrieb ohne Begrenzung, nichts zu tun
+        store.set_trial_left(o, left + credits)
+    log.info("Zahlung %s: %s Grundriss(e) für %s", session["id"], credits, o)
+    return credits
+
+
+@app.post("/billing/checkout")
+def checkout(body: CheckoutIn, origin: str = Header(default=""), authorization: str = Header(default=""), o: str = Depends(org)):
+    if store.trial_left(o) is None:
+        raise HTTPException(400, "Dein Betrieb hat bereits unbegrenzt Grundrisse.")
+    user = store.user_for_token(authorization.removeprefix("Bearer ").strip()) or {}
+    try:
+        return billing.create_checkout(o, body.pack, user.get("email"), _site(origin))
+    except billing.BillingError as e:
+        log.error("Checkout fehlgeschlagen: %s", e)
+        raise HTTPException(503, f"Die Bezahlung klappt gerade nicht. Bitte später erneut versuchen oder schreib uns an {CONTACT}.")
+
+
+class ConfirmIn(BaseModel):
+    session_id: str = Field(pattern=r"^cs_[A-Za-z0-9_]{10,200}$")
+
+
+@app.post("/billing/confirm")
+def confirm(body: ConfirmIn, o: str = Depends(org)):
+    """Nach der Rückkehr von Stripe: Zahlung sofort gutschreiben, ohne auf den Webhook zu warten."""
+    try:
+        s = billing.get_session(body.session_id)
+    except billing.BillingError:
+        raise HTTPException(404, "Diese Zahlung kennen wir nicht.")
+    if (s.get("metadata") or {}).get("org") != o:
+        raise HTTPException(404, "Diese Zahlung kennen wir nicht.")
+    added = _fulfill(s)
+    return {"paid": s.get("payment_status") == "paid", "added": added or 0, "trial_left": store.trial_left(o)}
+
+
+@app.post("/billing/webhook", include_in_schema=False)
+async def stripe_webhook(request: Request):
+    secret = os.environ.get("STRIPE_WEBHOOK_SECRET")
+    if not secret:
+        raise HTTPException(503, "Webhook nicht eingerichtet")
+    payload = await request.body()
+    try:
+        billing.verify_webhook(payload, request.headers.get("stripe-signature", ""), secret)
+    except billing.BillingError as e:
+        raise HTTPException(400, str(e))
+    event = json.loads(payload)
+    if event.get("type") in ("checkout.session.completed", "checkout.session.async_payment_succeeded"):
+        _fulfill(event["data"]["object"])
+    return {"ok": True}
 
 
 # Begriffe: In der Oberfläche ist ein "Projekt" ein Ordner (z. B. ein Haus) mit mehreren "Grundrissen".
@@ -704,7 +780,8 @@ def start_analysis(pid: str, bg: BackgroundTasks, body: AnalyzeIn | None = None,
     left = store.trial_left(o)
     if left is not None:
         if left <= 0:
-            raise HTTPException(402, f"Deine kostenlosen Grundrisse sind aufgebraucht. Für weitere Grundrisse schreib uns an {CONTACT}.")
+            raise HTTPException(402, "Dein Guthaben ist aufgebraucht. Unter „Projekte“ kannst du weitere Grundrisse kaufen." if billing.configured()
+                                else f"Deine kostenlosen Grundrisse sind aufgebraucht. Für weitere Grundrisse schreib uns an {CONTACT}.")
         store.set_trial_left(o, left - 1)
     bg.add_task(_run_extraction, o, pid)
     extra = {"consents": [*meta.get("consents", []), time.time()]} if private else {}  # Nachweis der Zustimmung

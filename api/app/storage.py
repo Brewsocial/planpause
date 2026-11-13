@@ -70,6 +70,17 @@ class Store:
         orgs[org]["trial_left"] = n
         (self.root / "orgs.json").write_text(json.dumps(orgs, indent=1))
 
+    def record_payment(self, sid: str, org: str, credits: int, amount: int) -> bool:
+        """Zahlung festhalten; False, wenn sie schon gutgeschrieben wurde (Webhook und Rückkehr melden dieselbe Zahlung)."""
+        f = self.root / "payments.json"
+        pays = json.loads(f.read_text()) if f.exists() else {}
+        if sid in pays:
+            return False
+        pays[sid] = {"org": org, "credits": credits, "amount": amount, "at": time.time()}
+        self.root.mkdir(parents=True, exist_ok=True)
+        f.write_text(json.dumps(pays, indent=1))
+        return True
+
     def is_private(self, org: str) -> bool:
         """Verbraucher (§ 13 BGB): vor jeder Auswertung Zustimmung zum vorzeitigen Beginn nötig (Widerrufsrecht)."""
         return bool(self.orgs().get(org, {}).get("private"))

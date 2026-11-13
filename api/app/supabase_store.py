@@ -94,6 +94,12 @@ class SupabaseStore:
         if not self._rest("PATCH", "orgs", {"id": f"eq.{_check(org)}"}, body={"trial_left": n}, prefer="return=representation"):
             raise NotFound(org)
 
+    def record_payment(self, sid: str, org: str, credits: int, amount: int) -> bool:
+        """Zahlung festhalten; False, wenn sie schon gutgeschrieben wurde (Primärschlüssel = Checkout-Sitzung)."""
+        rows = self._rest("POST", "payments", body={"id": sid, "org_id": _check(org), "credits": credits, "amount_cents": amount},
+                          prefer="resolution=ignore-duplicates,return=representation")
+        return bool(rows)
+
     def orgs_created_since(self, ts: float) -> int:
         since = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(ts))
         return len(self._rest("GET", "orgs", {"created_at": f"gte.{since}", "select": "id"}))

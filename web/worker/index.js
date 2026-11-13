@@ -3,7 +3,7 @@
 // Worker → Einstellungen → Variablen), z. B. die Adresse des Cloudflare-Tunnels zum Mac.
 
 // Alle Pfade der API; neue Endpunkte hier ergänzen, sonst liefert der Worker stattdessen eine Seite aus
-const API_PREFIXES = ["/health", "/me", "/signup", "/projects", "/folders", "/pdf", "/admin"];
+const API_PREFIXES = ["/health", "/me", "/signup", "/projects", "/folders", "/pdf", "/admin", "/billing"];
 
 export default {
   async fetch(request, env) {

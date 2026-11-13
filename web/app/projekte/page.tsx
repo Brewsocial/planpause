@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import PlanCard from "@/components/PlanCard";
+import Credits from "@/components/Credits";
 import Thumb from "@/components/Thumb";
-import { api } from "@/lib/api";
+import { api, type Me } from "@/lib/api";
 import { floorOrder } from "@/lib/status";
 import type { Folder, Meta } from "@/lib/types";
 
@@ -15,13 +16,22 @@ export default function Projects() {
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [name, setName] = useState("");
-  const [me, setMe] = useState<{ trial_left: number | null; contact: string } | null>(null);
+  const [me, setMe] = useState<Me | null>(null);
+  const [notice, setNotice] = useState("");
   const [welcome, setWelcome] = useState(false);
 
   useEffect(() => {
     api.folders().then(setData).catch((e) => setErr(e.message));
-    api.me().then(setMe).catch(() => setMe(null));
-    setWelcome(new URLSearchParams(window.location.search).has("neu"));
+    const q = new URLSearchParams(window.location.search);
+    setWelcome(q.has("neu"));
+    const kauf = q.get("kauf");
+    if (kauf) window.history.replaceState(null, "", "/projekte");
+    // Rückkehr von Stripe: Zahlung sofort gutschreiben lassen (der Webhook kann ein paar Sekunden später kommen)
+    const paid = kauf?.startsWith("cs_") ? api.confirmPayment(kauf).then((r) => {
+      setNotice(r.paid ? "Danke, die Zahlung ist eingegangen." : "Die Zahlung ist noch nicht bestätigt. Das Guthaben erscheint, sobald sie eingeht.");
+    }).catch(() => undefined) : Promise.resolve();
+    if (kauf === "abbruch") setNotice("Zahlung abgebrochen, es wurde nichts berechnet.");
+    paid.then(() => api.me()).then(setMe).catch(() => setMe(null));
   }, []);
 
   async function create(e: React.FormEvent) {
@@ -45,12 +55,7 @@ export default function Projects() {
           <h1>{welcome ? "Willkommen bei Planpause" : "Neues Projekt"}</h1>
           <p className="lead">{welcome ? "Dein Konto ist angelegt. Leg jetzt dein erstes Projekt an, z. B. für ein Haus, und lade darin deinen ersten Grundriss hoch." :
             "Ein Projekt bündelt alle Grundrisse eines Gebäudes, auch mehrere Zeichnungen pro Geschoss."}</p>
-          {me?.trial_left != null && (
-            <p className={me.trial_left > 0 ? "hint" : "err"} style={{ margin: "8px 0 0" }}>
-              {me.trial_left > 0 ? `Noch ${me.trial_left} kostenlose${me.trial_left === 1 ? "r" : ""} Grundriss${me.trial_left === 1 ? "" : "e"} zum Ausprobieren.` :
-                <>Deine kostenlosen Grundrisse sind aufgebraucht. Für weitere schreib uns an <a href={`mailto:${me.contact}`}>{me.contact}</a>.</>}
-            </p>
-          )}
+          {me && <Credits me={me} notice={notice} />}
         </div>
         <div className="row-form">
           <label className="field" style={{ flex: 1 }}>Name des Projekts

@@ -416,3 +416,53 @@ def test_registrierung_speichert_agb_zustimmung(client, monkeypatch):
     assert client.post("/signup", json={**body, "terms": False}).status_code == 400
     assert client.post("/signup", json={**body, "terms": True}).status_code == 200
     assert seen["terms"]["version"] == main.TERMS_VERSION and seen["terms"]["accepted_at"] > 1.7e9
+
+
+def _stripe_sig(payload: bytes, secret: str, ts: int) -> str:
+    import hashlib
+    import hmac
+    return f"t={ts},v1=" + hmac.new(secret.encode(), f"{ts}.".encode() + payload, hashlib.sha256).hexdigest()
+
+
+def test_bezahlung_mit_stripe(client, monkeypatch):
+    import time
+    import app.main as main
+    adm = {"X-Admin-Token": "admin"}
+    client.patch("/admin/orgs/demo-betrieb", headers=adm, json={"trial_left": 0})
+    assert client.get("/me", headers=H).json()["billing"] is False
+    assert client.post("/billing/checkout", headers=H, json={"pack": "zehn"}).status_code == 503  # ohne Schlüssel
+
+    monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_x")
+    monkeypatch.setenv("STRIPE_WEBHOOK_SECRET", "whsec_test")
+    sent = {}
+
+    def fake_checkout(o, pack, email, site):
+        sent.update(org=o, pack=pack, site=site)
+        return {"id": "cs_test_a1b2c3d4", "url": "https://checkout.stripe.com/c/pay/cs_test_a1b2c3d4"}
+    monkeypatch.setattr(main.billing, "create_checkout", fake_checkout)
+    r = client.post("/billing/checkout", headers={**H, "Origin": "https://boese.example"}, json={"pack": "zehn"})
+    assert r.json()["url"].startswith("https://checkout.stripe.com") and sent == {"org": "demo-betrieb", "pack": "zehn", "site": main.PUBLIC_URL}
+    assert client.post("/billing/checkout", headers=H, json={"pack": "gratis"}).status_code == 422
+
+    session = {"id": "cs_test_a1b2c3d4", "object": "checkout.session", "payment_status": "paid", "amount_total": 4500,
+               "client_reference_id": "demo-betrieb", "metadata": {"org": "demo-betrieb", "pack": "zehn", "credits": "10"}}
+    body = json.dumps({"type": "checkout.session.completed", "data": {"object": session}}).encode()
+    now = int(time.time())
+    assert client.post("/billing/webhook", content=body, headers={"Stripe-Signature": _stripe_sig(body, "whsec_falsch", now)}).status_code == 400
+    assert client.post("/billing/webhook", content=body, headers={"Stripe-Signature": _stripe_sig(body, "whsec_test", now - 3600)}).status_code == 400
+    for _ in range(2):  # Stripe wiederholt Webhooks: trotzdem nur einmal gutschreiben
+        assert client.post("/billing/webhook", content=body, headers={"Stripe-Signature": _stripe_sig(body, "whsec_test", now)}).status_code == 200
+    assert client.get("/me", headers=H).json()["trial_left"] == 10
+
+    monkeypatch.setattr(main.billing, "get_session", lambda sid: session)  # Rückkehr von Stripe: schon gutgeschrieben
+    r = client.post("/billing/confirm", headers=H, json={"session_id": "cs_test_a1b2c3d4"}).json()
+    assert (r["paid"], r["added"], r["trial_left"]) == (True, 0, 10)
+    unpaid = {**session, "id": "cs_test_offen123", "payment_status": "unpaid"}
+    monkeypatch.setattr(main.billing, "get_session", lambda sid: unpaid)
+    assert client.post("/billing/confirm", headers=H, json={"session_id": "cs_test_offen123"}).json()["added"] == 0
+    other = {**session, "id": "cs_test_fremd123", "metadata": {"org": "anderer-betrieb", "pack": "einzel"}}
+    monkeypatch.setattr(main.billing, "get_session", lambda sid: other)
+    assert client.post("/billing/confirm", headers=H, json={"session_id": "cs_test_fremd123"}).status_code == 404
+    cheap = {**session, "id": "cs_test_billig", "amount_total": 100}
+    assert main.billing.paid_credits(cheap) is None
+    client.patch("/admin/orgs/demo-betrieb", headers=adm, json={"trial_left": None})

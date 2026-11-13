@@ -11,7 +11,7 @@ USER = {"id": "11111111-1111-1111-1111-111111111111", "email": "test@example.com
 
 class FakeSupabase:
     def __init__(self):
-        self.tables = {"orgs": [], "org_members": [], "projects": []}
+        self.tables = {"orgs": [], "org_members": [], "projects": [], "payments": []}
         self.objects: dict[str, bytes] = {}
         self.users: dict[str, dict] = {}
 
@@ -53,8 +53,11 @@ class FakeSupabase:
             if req.method == "POST":
                 body = json.loads(req.content)
                 key = "user_id" if m[1] == "org_members" else "id"
-                if not any(r[key] == body[key] for r in rows):
+                new = not any(r[key] == body[key] for r in rows)
+                if new:
                     rows.append(body)
+                if "return=representation" in req.headers.get("prefer", ""):  # wie PostgREST bei ignore-duplicates
+                    return httpx.Response(201, json=[body] if new else [])
                 return httpx.Response(201)
             if req.method == "PATCH":
                 hit = [r for r in rows if self._match(r, params)]
@@ -113,7 +116,7 @@ def test_projektablauf_mit_supabase(sb):
     c, fake, main = sb
     main.store.ensure_org("malerbetrieb-mueller", "Malerbetrieb Müller")
     fake.tables["org_members"].append({"user_id": USER["id"], "org_id": "malerbetrieb-mueller"})
-    assert c.get("/me", headers=H).json() | {"contact": ""} == {"org": "malerbetrieb-mueller", "name": "Malerbetrieb Müller", "trial_left": None, "private": False, "contact": ""}
+    assert c.get("/me", headers=H).json() | {"contact": "", "billing": False, "billing_test": False} == {"org": "malerbetrieb-mueller", "name": "Malerbetrieb Müller", "trial_left": None, "private": False, "contact": "", "billing": False, "billing_test": False}
 
     pid = c.post("/projects/demo/darmstaedter14", headers=H).json()["id"]
     assert [p["id"] for p in c.get("/projects", headers=H).json()] == [pid]
@@ -171,3 +174,14 @@ def test_registrierung_begrenzt(sb, monkeypatch):
     monkeypatch.setattr(main, "SIGNUPS_PER_DAY", 99)
     ip = {"X-Planpause-Client-IP": "9.9.9.9"}
     assert [c.post("/signup", json=ok(i), headers=ip).status_code for i in range(3, 7)] == [200, 200, 200, 429]
+
+
+def test_zahlung_wird_einmal_gutgeschrieben(sb):
+    c, fake, main = sb
+    main.store.ensure_org("malerbetrieb-mueller", "Malerbetrieb Müller")
+    main.store.set_trial_left("malerbetrieb-mueller", 0)
+    session = {"id": "cs_test_123456789", "payment_status": "paid", "amount_total": 499,
+               "metadata": {"org": "malerbetrieb-mueller", "pack": "einzel"}}
+    assert main._fulfill(session) == 1 and main._fulfill(session) == 0
+    assert main.store.trial_left("malerbetrieb-mueller") == 1
+    assert fake.tables["payments"] == [{"id": "cs_test_123456789", "org_id": "malerbetrieb-mueller", "credits": 1, "amount_cents": 499}]

@@ -28,14 +28,19 @@ export default function Agb() {
       <p>Die Registrierung ist kostenlos. Mit ihr kommt ein unentgeltlicher Nutzungsvertrag über das Konto zustande. Die Angaben
         bei der Registrierung müssen wahr sein. Zugangsdaten sind geheim zu halten.</p>
       <p>Neue Konten können eine begrenzte Zahl kostenloser Grundrisse zum Ausprobieren erhalten. Ein Anspruch darauf besteht nicht.</p>
-      <p>Kostenpflichtige Grundrisse und Pakete bestellt der Kunde per E-Mail oder über die Anwendung. Der Vertrag kommt zustande,
-        wenn wir die Bestellung per E-Mail bestätigen oder das Kontingent freischalten. Die Vertragssprache ist Deutsch. Diese
+      <p>Kostenpflichtige Grundrisse und Pakete bestellt der Kunde in der Anwendung. Mit „Kaufen“ wird er zum Zahlungsdienstleister
+        Stripe weitergeleitet und sieht dort Paket und Endpreis noch einmal. Mit dem Klick auf die Schaltfläche zum Bezahlen gibt er
+        ein verbindliches Angebot ab; der Vertrag kommt zustande, sobald die Zahlung bestätigt ist und wir das Guthaben gutschreiben.
+        Bestellungen per E-Mail sind weiterhin möglich; dann kommt der Vertrag mit unserer Bestätigung per E-Mail zustande. Die
+        Vertragssprache ist Deutsch. Diese
         Bedingungen sind jederzeit unter <Link href="/agb">/agb</Link> abrufbar und können gespeichert oder gedruckt werden.</p>
 
       <h2>§ 4 Preise und Zahlung</h2>
       <p>Es gelten die zum Zeitpunkt der Bestellung auf unserer Website genannten Preise. Alle Preise sind Endpreise. Als
         Kleinunternehmer nach § 19 UStG weisen wir keine Umsatzsteuer aus.</p>
-      <p>Wir stellen eine Rechnung per E-Mail. Sie ist innerhalb von 14 Tagen ohne Abzug per Überweisung zu zahlen.</p>
+      <p>Bei Bestellung in der Anwendung wird sofort über Stripe bezahlt (z. B. Kreditkarte oder andere dort angebotene Zahlarten).
+        Den Zahlungsbeleg erhält der Kunde per E-Mail. Bei Bestellung per E-Mail stellen wir eine Rechnung, die innerhalb von 14 Tagen
+        ohne Abzug per Überweisung zu zahlen ist.</p>
       <p>Ein Grundriss wird vom Kontingent abgezogen, wenn eine Auswertung gestartet wird. Bricht die Auswertung aus technischen
         Gründen ohne Ergebnis ab, wird der Grundriss wieder gutgeschrieben. Grundrisse aus Paketen können bis zum Ende des dritten
         Kalenderjahres nach dem Kauf genutzt werden.</p>

@@ -51,3 +51,15 @@ on conflict (id) do nothing;
 -- null = ohne Begrenzung (eingeladene und zahlende Betriebe), Zahl = verbleibende kostenlose Analysen.
 alter table planpause.orgs add column if not exists trial_left integer;
 alter table planpause.orgs add column if not exists private boolean not null default false;
+
+-- Bezahlung über Stripe (November 2026): jede Checkout-Sitzung wird genau einmal gutgeschrieben.
+-- Gutgeschriebene Grundrisse landen in orgs.trial_left (verfügbares Guthaben).
+create table if not exists planpause.payments (
+  id           text primary key,             -- Stripe Checkout-Sitzung (cs_…)
+  org_id       text not null references planpause.orgs (id) on delete restrict,
+  credits      integer not null,
+  amount_cents integer not null,
+  created_at   timestamptz not null default now()
+);
+alter table planpause.payments enable row level security;
+grant all on planpause.payments to service_role;

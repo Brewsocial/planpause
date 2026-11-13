@@ -382,3 +382,8 @@ footer.foot a { color: var(--muted) }
 .lp-3d { margin: 0; display: grid; gap: 10px; min-width: 0 }
 .lp-3d figcaption { max-width: 760px }
 .lp-model .model3d-view { height: min(72vh, 620px, 125vw) }
+
+/* Guthaben und Kauf (Projektübersicht) */
+.credits { display: grid; gap: 6px; margin-top: 10px; }
+.credits-buy { display: flex; flex-wrap: wrap; gap: 8px; }
+.credits .ok { color: #15803d; font-weight: 600; }
