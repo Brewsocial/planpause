@@ -99,10 +99,3 @@ export async function download(path: string, filename: string) {
 export const fmt = (v: number | null | undefined, d = 0) =>
   v == null || !isFinite(v) ? "–" : v.toLocaleString("de-DE", { minimumFractionDigits: d, maximumFractionDigits: d });
 
-/** KI-Kosten eines Projekts, z. B. "0,31 $ (gesamt 1,64 $)" */
-export const costText = (m: { cost_usd?: number; last_cost_usd?: number }) => {
-  if (!m.cost_usd) return "";
-  const usd = (v: number) => `${v.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $`;
-  return m.last_cost_usd !== undefined && Math.abs(m.cost_usd - m.last_cost_usd) > 0.005
-    ? `${usd(m.last_cost_usd)} (gesamt ${usd(m.cost_usd)})` : usd(m.cost_usd);
-};

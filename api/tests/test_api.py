@@ -161,8 +161,10 @@ def test_kosten_werden_am_projekt_summiert(client, monkeypatch):
         raise ex.ExtractionError("abgeschnitten", {"cost_usd": 1.33, "rounds": []})
     monkeypatch.setattr(ex, "extract_plan", fail)
     main._run_extraction("demo-betrieb", pid)
-    m = client.get(f"/projects/{pid}", headers=H).json()["meta"]
+    m = main.store.meta("demo-betrieb", pid)  # im Datensatz gespeichert …
     assert m["last_cost_usd"] == 1.33 and m["cost_usd"] == pytest.approx(1.64) and m["status"] == "fehler"
+    for r in (client.get(f"/projects/{pid}", headers=H), client.get("/folders", headers=H), client.get("/projects", headers=H)):
+        assert r.status_code == 200 and "cost_usd" not in r.text  # … aber nie an den Browser geschickt
 
 
 def test_web_app_wird_mit_ausgeliefert(tmp_path, monkeypatch):

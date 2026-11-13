@@ -18,7 +18,7 @@ from typing import Literal
 
 from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, Header, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import PlainTextResponse, Response
+from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from pydantic import BaseModel, Field
 
 from planpause_engine.export import to_dxf, to_report
@@ -61,7 +61,25 @@ async def lifespan(_app):
     yield
 
 
-app = FastAPI(title="Planpause API", version="0.1.0", lifespan=lifespan)
+INTERNAL_KEYS = {"cost_usd", "last_cost_usd"}  # KI-Kosten: bleiben im Datensatz (projects.meta), gehen aber nie an den Browser
+
+
+def _public(x):
+    if isinstance(x, dict):
+        return {k: _public(v) for k, v in x.items() if k not in INTERNAL_KEYS}
+    if isinstance(x, list):
+        return [_public(v) for v in x]
+    return x
+
+
+class PublicJSON(JSONResponse):
+    """Standard-Antwort aller Endpunkte: entfernt interne Felder wie die KI-Kosten."""
+
+    def render(self, content) -> bytes:
+        return super().render(_public(content))
+
+
+app = FastAPI(title="Planpause API", version="0.1.0", lifespan=lifespan, default_response_class=PublicJSON)
 app.add_middleware(CORSMiddleware, allow_origins=os.environ.get("PLANPAUSE_CORS", "http://localhost:3000").split(","),
                    allow_methods=["*"], allow_headers=["*"])
 

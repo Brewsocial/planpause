@@ -38,7 +38,7 @@ export interface Result {
 }
 /** Geschossübergreifende Prüfung: Außenwände des oberen Geschosses ohne Gegenstück im unteren */
 export interface StoreyCheck { lower: string; upper: string; total: number; unmatched: number; ok: boolean; bbox_shift: number[] }
-export interface Meta { id: string; name: string; status: string; created: number; updated: number; error?: string | null; demo?: boolean; steps?: string[]; quality?: Quality["level"]; warnings?: string[]; cost_usd?: number; last_cost_usd?: number; analyses?: number[];
+export interface Meta { id: string; name: string; status: string; created: number; updated: number; error?: string | null; demo?: boolean; steps?: string[]; quality?: Quality["level"]; warnings?: string[]; analyses?: number[];
   kind?: "folder"; folder_id?: string | null; floor?: string; part?: string }
 export interface Placement { dx: number; dy: number; rot: 0 | 90 | 180 | 270; dz?: number }  // dz: Höhenversatz in cm
 /** Projekt = Ordner mit mehreren Grundrissen (z. B. ein Haus) */

@@ -4,7 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import PlanView from "@/components/PlanView";
 import Link from "next/link";
-import { api, costText, download, fmt } from "@/lib/api";
+import { api, download, fmt } from "@/lib/api";
 import { Waiver, usePrivate } from "@/components/Waiver";
 import { statusBadge } from "@/lib/status";
 import type { Folder, Issue, MeasureHint, Project, Quality, Result } from "@/lib/types";
@@ -102,7 +102,6 @@ export default function PlanPage() {
         <div className="sheet summary">
           <div className="badges"><span className="badge crit">Analyse fehlgeschlagen</span></div>
           <p style={{ margin: 0 }}>{p.meta.error}</p>
-          {costText(p.meta) && <span className="hint">KI-Kosten bisher: {costText(p.meta)}</span>}
           {priv && <Waiver checked={consent} onChange={setConsent} />}
           <div><button className="btn primary" onClick={analyze} disabled={priv && !consent}>Erneut versuchen</button></div>
         </div>)}
@@ -156,7 +155,7 @@ export default function PlanPage() {
           <div className={measured < 50 ? "warn" : ""}><b>{measured} %</b><span>der Kanten vermaßt</span></div>
           <div className={s.rooms_checked && s.rooms_ok < s.rooms_checked ? "warn" : ""}><b>{s.rooms_ok}/{s.rooms_checked}</b><span>Raumflächen bestätigt</span></div>
         </div>
-        <span className="meta">{open.pruefen} zu prüfen · {open.info} Hinweise · {s.lines_from_area} Kanten aus Flächen · {s.lines_from_drawing} nach Zeichnung{costText(p.meta) && ` · KI-Kosten ${costText(p.meta)}`}</span>
+        <span className="meta">{open.pruefen} zu prüfen · {open.info} Hinweise · {s.lines_from_area} Kanten aus Flächen · {s.lines_from_drawing} nach Zeichnung</span>
       </section>
 
       <div className="grid2">
