@@ -57,7 +57,7 @@ export const api = {
   pdfPages: (file: File) => {
     const fd = new FormData();
     fd.append("file", file);
-    return call<{ pages: { page: number; mm: [number, number]; thumb: string }[] }>("/pdf/pages", { method: "POST", body: fd });
+    return call<{ pages: { page: number; mm: [number, number]; thumb: string; plans?: [number, number, number, number][] }[] }>("/pdf/pages", { method: "POST", body: fd });
   },
   upload: (file: File, f: { name: string; notes?: string; folder_id?: string; floor?: string; part?: string; page?: string; crop?: string }) => {
     const fd = new FormData();

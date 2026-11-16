@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import copy
 
+from .geometry import fixture_shapes
+
 ROTATIONS = (0, 90, 180, 270)
 
 
@@ -57,6 +59,11 @@ def transform_geometry(geom: dict, dx: float = 0.0, dy: float = 0.0, rot: int = 
             s["a0"], s["a1"] = s["a0"] + rot, s["a1"] + rot
     for f in g["features"]:
         f["rect"] = _rect(f["rect"], rot, dx, dy)
+    for fx in g.get("fixtures", []):
+        fx["rect"] = _rect(fx["rect"], rot, dx, dy)
+        fx["shapes"] = fixture_shapes(fx["type"], fx["rect"])
+    for mk in g.get("marks", []):
+        mk["at"] = _pt(mk["at"], rot, dx, dy)
     for r in g["rooms"]:
         r["poly"] = [_pt(p, rot, dx, dy) for p in r["poly"]]
         if r.get("label"):
@@ -105,12 +112,13 @@ def combine(parts: list[dict]) -> dict:
     parts: [{"id", "label", "geometry", "dx", "dy", "rot", "dz" (Höhenversatz in cm, optional)}]. Jedes Element des Ergebnisses trägt "part" (die id),
     damit Anzeige und Export die Teile unterscheiden können.
     """
-    merged = {"walls": [], "openings": [], "features": [], "rooms": [], "zones": [], "chains": [], "lines": {"x": [], "y": []}}
+    merged = {"walls": [], "openings": [], "features": [], "fixtures": [], "marks": [], "rooms": [], "zones": [], "chains": [],
+              "lines": {"x": [], "y": []}}
     meta = []
     for p in parts:
         g = transform_geometry(p["geometry"], p.get("dx", 0.0), p.get("dy", 0.0), p.get("rot", 0))
-        for key in ("walls", "openings", "features", "rooms", "zones"):
-            merged[key] += [{**e, "part": p["id"], **({"dz": p["dz"]} if p.get("dz") else {})} for e in g[key]]
+        for key in ("walls", "openings", "features", "fixtures", "marks", "rooms", "zones"):
+            merged[key] += [{**e, "part": p["id"], **({"dz": p["dz"]} if p.get("dz") else {})} for e in g.get(key, [])]
         merged["chains"] += [{**c, "id": f"{p['id']}:{c['id']}", "part": p["id"]} for c in g["chains"]]
         for ax in ("x", "y"):
             merged["lines"][ax] += [{**l, "id": f"{p['id']}:{l['id']}", "part": p["id"]} for l in g["lines"][ax]]

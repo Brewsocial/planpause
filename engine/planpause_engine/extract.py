@@ -4,7 +4,10 @@ Ablauf
   1. entzerrtes Gesamtbild + vier vergrößerte Ausschnitte an Claude
   2. Antwort über ein Werkzeug mit festem JSON-Schema (PlanModel)
   3. Prüfung auf fehlende Linienverweise; bei Fehlern eine Korrekturrunde
-  4. Pixelpositionen auf erkannte Wandkanten einrasten (lines_cv)
+  4. Pixelpositionen einrasten: erst gesamthaft auf erkannte Kanten (lines_cv), dann jede Linie auf den Rand
+     ihrer Wand in der Wandmaske (walls_cv)
+  5. Kontrollrunden (review): Abgleich von Wandmaske und Modell, die KI ergänzt Fehlendes und streicht Falsches,
+     bis nichts mehr zu tun ist (höchstens REVIEW_ROUNDS)
 """
 from __future__ import annotations
 
@@ -19,6 +22,7 @@ from .lines_cv import snap_lines
 from .model import PlanModel
 from .purpose import ai_hint
 from .preprocess import Prepared
+from .walls_cv import snap_to_walls
 
 DEFAULT_MODEL = os.environ.get("PLANPAUSE_MODEL", "claude-opus-5-5")
 TOOL_NAME = "planmodell_speichern"
@@ -30,6 +34,7 @@ TASK_BUDGET = int(os.environ.get("PLANPAUSE_TASK_BUDGET", "80000"))
 # Zweiter Durchgang: KI prüft den erkannten Plan auf einem Kontrollbild und ergänzt Fehlendes (review.py)
 OVERVIEW_SIDE = 3000  # Gesamtbild höchstens so groß schicken; Details kommen über die Ausschnitte
 REVIEW = os.environ.get("PLANPAUSE_REVIEW", "1") == "1"  # Bensheim-EG: ergänzte eine fehlende Tür für 0,12 $
+REVIEW_ROUNDS = int(os.environ.get("PLANPAUSE_REVIEW_ROUNDS", "3"))  # weitere Runden nur, solange sie etwas ändern
 # US-Dollar pro Million Tokens (Eingabe, Ausgabe); für die Kostenanzeige
 PRICES = {"claude-opus-5-5": (4.0, 20.0), "claude-sonnet-5-5": (2.0, 10.0), "claude-fable-5-1": (10.0, 50.0)}
 
@@ -77,6 +82,9 @@ Ein fehlendes Bauteil ist schlimmer als eines mit ungenauer Lage.
 - rooms: Name, area_stated in m² (das Zeichen # oder qm hinter Zahlen steht für m²), poly als Ecken der Innenkontur [x-Linie, y-Linie] im Uhrzeigersinn.
   Gib für jeden Raum den Umriss an, der sich aus den umgebenden Wänden ergibt (auch wenn diese Wände nur nach Zeichnung liegen). poly nur leer lassen, wenn der Raum im Bild wirklich keine erkennbare Begrenzung hat.
   name genau wie im Plan geschrieben. Steht kein Name im Plan, einen passenden vergeben und name_assumed = true setzen.
+- fixtures: feste Einrichtung, nur schematisch: Badewanne (badewanne), Dusche (dusche), WC (wc), Waschbecken (waschbecken),
+  Küchenzeile (kuechenzeile), Spüle (spuele), Herd (herd). box = Umriss in Pixeln von Bild 1 [x links, y oben, x rechts, y unten],
+  am Lineal abgelesen. Dafür KEINE Linien anlegen. Lose Möbel (Betten, Tische, Schränke) weglassen.
 - zones: Terrassen, Balkone, Lichtschächte, Einfahrten und ähnliche Flächen außerhalb der Wände; auch Nachbarbebauung, wenn sie gezeichnet ist (type "Nachbar").
 
 ## Was sonst im Plan steht
@@ -193,15 +201,24 @@ def extract_plan(prep: Prepared, notes: str = "", client=None, model: str | None
         plan = drop_broken(plan)
     log["px_raw"] = {ax: {l.id: l.px for l in plan.axes[ax]} for ax in ("x", "y")}  # vor dem Einrasten, zur Fehlersuche
     log["snapped"] = snap_lines(plan, prep.image)
+    log["snapped_walls"] = snap_to_walls(plan, prep.image)
     if log["review"]:
         from .review import review_plan
-        try:
-            plan, rlog = review_plan(prep, plan, client, model, max_tokens, request)
-        except Exception as e:  # noqa: BLE001 – der Check ist eine Verbesserung, kein Muss
-            rlog = {"result": f"Fehler im Vollständigkeits-Check: {str(e)[:200]}", "usage": {}}
-        rlog["cost_usd"] = usage_cost(model, rlog.get("usage") or {})
-        log["review_round"] = rlog
-        log["cost_usd"] = round(log["cost_usd"] + rlog["cost_usd"], 4)
+        log["review_rounds"] = []
+        for n in range(max(1, REVIEW_ROUNDS)):
+            try:
+                plan, rlog = review_plan(prep, plan, client, model, max_tokens, request)
+            except Exception as e:  # noqa: BLE001 – der Check ist eine Verbesserung, kein Muss
+                rlog = {"result": f"Fehler im Vollständigkeits-Check: {str(e)[:200]}", "usage": {}}
+            rlog["cost_usd"] = usage_cost(model, rlog.get("usage") or {})
+            log["review_rounds"].append(rlog)
+            log["cost_usd"] = round(log["cost_usd"] + rlog["cost_usd"], 4)
+            added = rlog.get("added") or {}
+            changed = sum(v for k, v in added.items() if k != "verworfen")
+            cv = rlog.get("cv") or {}
+            if not changed or not (cv.get("fehlend") or cv.get("luecken") or cv.get("ohne_zeichnung")):
+                break  # nichts mehr geändert, oder die Bildverarbeitung hatte schon vorher nichts zu beanstanden
+        log["review_round"] = log["review_rounds"][0]  # wie bisher: erste Runde, für Auswertungen alter Protokolle
     return plan, log
 
 

@@ -187,9 +187,12 @@ export default function PlanPage() {
             </div>
           </div>
           <div className="legend">
-            <span><i style={{ background: "repeating-linear-gradient(45deg,var(--wall) 0 1.5px,var(--wall-tint) 1.5px 5px)", border: "1px solid var(--wall)" }} />Mauerwerk</span>
+            <span><i style={{ background: "#5c5c61" }} />Wand, vermaßt</span>
+            <span><i style={{ background: "#8e8e93" }} />Wand, am Bild gemessen</span>
             <span><i style={{ background: "var(--wall)" }} />Brandwand</span>
-            <span><i style={{ border: "2px dashed var(--estimated)" }} />Lage nur nach Zeichnung</span>
+            <span><i style={{ background: "#e3eeff", border: "1.5px solid #0a66d8" }} />Fenster</span>
+            <span><i style={{ background: "#dff5e6", border: "1.5px solid #1f9d4c" }} />Tür, Durchgang</span>
+            <span><i style={{ border: "1.5px solid #0a9aa8" }} />Sanitär, Küche</span>
             <span><i style={{ background: "var(--crit)", height: 3 }} />verdächtiges Maß</span>
             <span>Maße in cm</span>
           </div>

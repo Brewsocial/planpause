@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 import cv2
 import numpy as np
 
-MAX_SIDE = 2400
+MAX_SIDE = 3600  # Handyfotos haben 4000 px und mehr; kleine Maßzahlen brauchen die Auflösung
 
 
 @dataclass

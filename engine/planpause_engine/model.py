@@ -90,6 +90,18 @@ class Feature(Rect):
     treads: Optional[int] = None
 
 
+FixtureType = Literal["badewanne", "dusche", "wc", "waschbecken", "kuechenzeile", "spuele", "herd", "sonstiges"]
+
+
+class Fixture(BaseModel):
+    """Feste Einrichtung (Sanitär, Küche). Kein Bauteil: wird schematisch gezeichnet, nicht geprüft und nicht ins 3D-Modell übernommen.
+    Die Lage steht direkt in Bildpixeln, damit dafür keine eigenen Rasterlinien nötig sind."""
+
+    type: FixtureType = "sonstiges"
+    box: tuple[float, float, float, float] = Field(description="Umriss in Pixeln von Bild 1: [x links, y oben, x rechts, y unten]")
+    note: str = ""
+
+
 class Room(BaseModel):
     name: str
     area_stated: Optional[float] = Field(None, description="Fläche laut Plan in m²")
@@ -143,6 +155,7 @@ class PlanModel(BaseModel):
     walls: list[Wall] = Field(default_factory=list)
     openings: list[Opening] = Field(default_factory=list)
     features: list[Feature] = Field(default_factory=list)
+    fixtures: list[Fixture] = Field(default_factory=list)
     rooms: list[Room] = Field(default_factory=list)
     zones: list[Zone] = Field(default_factory=list)
     annotations: list[Annotation] = Field(default_factory=list)

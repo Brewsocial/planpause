@@ -7,8 +7,8 @@ import math
 import ezdxf
 from ezdxf.enums import TextEntityAlignment
 
-LAYERS = [("WAENDE", 1), ("BRANDWAND", 6), ("FENSTER", 5), ("TUEREN", 3), ("TORE", 3), ("TREPPE", 7),
-          ("BAUTEILE", 8), ("ZONEN", 8), ("RAEUME", 7), ("BEMASSUNG", 8), ("PRUEFPUNKTE", 30), ("GESCHAETZT", 40)]
+LAYERS = [("WAENDE", 8), ("BRANDWAND", 6), ("FENSTER", 5), ("TUEREN", 3), ("TORE", 3), ("TREPPE", 7),
+          ("BAUTEILE", 8), ("EINRICHTUNG", 4), ("HOEHEN", 1), ("ZONEN", 8), ("RAEUME", 7), ("BEMASSUNG", 8), ("PRUEFPUNKTE", 30), ("GESCHAETZT", 40)]
 UNITS = {"mm": (10.0, 4), "cm": (1.0, 5), "m": (0.01, 6)}
 
 
@@ -99,7 +99,7 @@ def to_dxf(geom: dict, issues: list | None = None, unit: str = "mm", title: str 
         loops = union_outlines([w["rect"] for w in geom["walls"] if w["kind"] in kinds])
         if not loops:
             continue
-        h = msp.add_hatch(dxfattribs={"layer": layer})
+        h = msp.add_hatch(color=256, dxfattribs={"layer": layer})  # Farbe vom Layer: Wände grau, Brandwände magenta
         for pts in loops:
             cad = [P(*q) for q in pts]
             msp.add_lwpolyline(cad, close=True, dxfattribs={"layer": layer})
@@ -159,6 +159,8 @@ def to_dxf(geom: dict, issues: list | None = None, unit: str = "mm", title: str 
                 b.add_line((0, 0), (ex * f, -ey * f), dxfattribs=a)
             name = block(f"TUER_{doors}_{num(round(length, 1))}", "TUEREN", draw, list(info))
             insert(name, "TUEREN", P(hx, hy), 0, info)
+        else:  # Tür ohne gezeichneten Aufschlag oder offener Durchgang: die Öffnung selbst zeigen
+            rect(o["rect"], "TUEREN")
     for ft in geom["features"]:
         x0, y0, x1, y1 = ft["rect"]
         layer = "TREPPE" if ft["type"].lower().startswith("treppe") else "BAUTEILE"
@@ -172,6 +174,28 @@ def to_dxf(geom: dict, issues: list | None = None, unit: str = "mm", title: str 
                 else:
                     xx = x0 + (x1 - x0) * i / n
                     msp.add_line(P(xx, y0), P(xx, y1), dxfattribs={"layer": "TREPPE"})
+        elif any(k in ft["type"].lower() for k in ("schacht", "aufzug", "schornstein", "kamin")):  # Kreuz: durchgehende Öffnung
+            msp.add_line(P(x0, y0), P(x1, y1), dxfattribs={"layer": "BAUTEILE"})
+            msp.add_line(P(x0, y1), P(x1, y0), dxfattribs={"layer": "BAUTEILE"})
+    # Sanitär und Küche: schematische Symbole an der richtigen Stelle, nicht formgetreu
+    for fx in geom.get("fixtures", []):
+        for sh in fx["shapes"]:
+            a = {"layer": "EINRICHTUNG"}
+            if sh[0] == "rect":
+                rect(sh[1:], "EINRICHTUNG")
+            elif sh[0] == "line":
+                msp.add_line(P(sh[1], sh[2]), P(sh[3], sh[4]), dxfattribs=a)
+            elif sh[0] == "ellipse" and sh[3] > 0.5 and sh[4] > 0.5:
+                cx, cy, rx, ry = sh[1:]
+                major, ratio = ((rx * f, 0), ry / rx) if rx >= ry else ((0, ry * f), rx / ry)
+                msp.add_ellipse(P(cx, cy), major_axis=major, ratio=ratio, dxfattribs=a)
+    for mk in geom.get("marks", []):  # Höhenkoten wie im Plan: Kreis mit Kreuz und Wert
+        x, y = mk["at"]
+        r = 9 * f
+        msp.add_circle(P(x, y), r, dxfattribs={"layer": "HOEHEN"})
+        msp.add_line((x * f - r, -y * f), (x * f + r, -y * f), dxfattribs={"layer": "HOEHEN"})
+        msp.add_line((x * f, -y * f - r), (x * f, -y * f + r), dxfattribs={"layer": "HOEHEN"})
+        msp.add_text(mk["text"], height=13 * f, dxfattribs={"layer": "HOEHEN"}).set_placement((x * f + 1.6 * r, -y * f), align=TextEntityAlignment.MIDDLE_LEFT)
     for z in geom["zones"]:
         msp.add_lwpolyline([P(*p) for p in z["poly"]], close=True, dxfattribs={"layer": "ZONEN"})
     for r in geom["rooms"]:

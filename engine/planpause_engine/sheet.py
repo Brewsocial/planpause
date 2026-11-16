@@ -1,7 +1,7 @@
 """PDF-Plan: der Grundriss wie im DXF, maßstäblich auf A4/A3 mit Plankopf und Maßstabsleiste.
 
 Gezeichnet wird mit dem Zeichen-Add-on von ezdxf (Texte als Umrisse), geschrieben wird die PDF ohne
-weitere Bibliotheken. Plan-Inhalt in Graustufen, geschätzte Bauteile orange."""
+weitere Bibliotheken. Wände dunkel, Fenster blau, Türen grün, Einrichtung türkis, Maße rot, geschätzte Bauteile orange."""
 from __future__ import annotations
 
 import io
@@ -19,8 +19,9 @@ from .export import to_dxf
 
 PAPERS = {"A4": (297.0, 210.0), "A3": (420.0, 297.0)}  # quer, in mm
 SCALES = [(50, "A4"), (100, "A4"), (100, "A3"), (200, "A3"), (250, "A3"), (500, "A3"), (1000, "A3")]
-PRINT_COLORS = {"WAENDE": 250, "BRANDWAND": 250, "FENSTER": 7, "TUEREN": 7, "TORE": 7, "TREPPE": 7, "BAUTEILE": 8,
-                "ZONEN": 9, "RAEUME": 7, "BEMASSUNG": 7, "GESCHAETZT": 30}
+# Wände dunkel, Öffnungen und Einrichtung farbig wie in gängigen Bestandsplänen: auf einen Blick unterscheidbar
+PRINT_COLORS = {"WAENDE": 251, "BRANDWAND": 250, "FENSTER": 5, "TUEREN": 94, "TORE": 94, "TREPPE": 8, "BAUTEILE": 8,
+                "EINRICHTUNG": 132, "HOEHEN": 1, "ZONEN": 9, "RAEUME": 7, "BEMASSUNG": 1, "GESCHAETZT": 30}
 LEFT, MARGIN, HEAD = 20.0, 10.0, 34.0  # Heftrand, Rand, Höhe des Plankopfs (mm)
 PT = 72 / 25.4
 
@@ -44,6 +45,14 @@ def _record(geom: dict, s: int):
     for layer in doc.layers:
         if layer.dxf.name in PRINT_COLORS:
             layer.color = PRINT_COLORS[layer.dxf.name]
+    doc.layers.get("WAENDE").rgb = (92, 92, 97)   # Wände als graue Flächen, nicht schwarz
+    msp = doc.modelspace()
+    # Raumumrisse sind für CAD gedacht; im Druck sähen sie wie dünne Wände aus
+    drop = list(msp.query('LWPOLYLINE[layer=="RAEUME"]'))
+    if _mostly_estimated(geom):  # fast alles am Bild gemessen: Einzelmarkierung wäre nur Unruhe, der Plankopf sagt es
+        drop += list(msp.query('*[layer=="GESCHAETZT"]'))
+    for e in drop:
+        msp.delete_entity(e)
     rec = recorder.Recorder()
     cfg = Configuration(background_policy=BackgroundPolicy.WHITE, color_policy=ColorPolicy.COLOR,
                         lineweight_policy=LineweightPolicy.ABSOLUTE)
@@ -51,6 +60,11 @@ def _record(geom: dict, s: int):
     player = rec.player()
     box = player.bbox()
     return player, (box.extmin.x, box.extmin.y, box.extmax.x, box.extmax.y)
+
+
+def _mostly_estimated(geom: dict) -> bool:
+    w = geom["walls"]
+    return bool(w) and sum(1 for x in w if x.get("estimated")) > 0.5 * len(w)
 
 
 class _Pdf:
@@ -178,7 +192,9 @@ def to_pdf(geom: dict, title: str = "", floor: str = "", scale: int | None = Non
     pdf.text(tx, ty - 14.5, " · ".join(x for x in (f"Grundriss {floor}" if floor else "Grundriss", f"Maßstab 1:{s} (bei Druck auf {paper})",
                                                   date.today().strftime("%d.%m.%Y")) if x), 9)
     pdf.text(tx, ty - 21, "Aus einem Bestandsplan berechnet (Planpause). Maße stammen aus den Maßketten des Plans; vor Verwendung am Bau prüfen.", 7)
-    if any(w.get("estimated") for w in geom["walls"]) or any(o.get("estimated") for o in geom["openings"]):
+    if _mostly_estimated(geom):
+        pdf.text(tx, ty - 28, "Innenwände ohne Maßkette sind am Plan gemessen (etwa ±2 bis 3 cm).", 7)
+    elif any(w.get("estimated") for w in geom["walls"]) or any(o.get("estimated") for o in geom["openings"]):
         pdf.color((1.0, 0.5, 0.0), True)
         pdf.rect(tx, ty - 28.6, 5, 2.6, 0.4)
         pdf.text(tx + 7, ty - 28, "orange umrandet: geschätzt, nicht aus einer Maßkette", 7)

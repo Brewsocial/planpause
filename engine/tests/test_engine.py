@@ -13,6 +13,7 @@ from planpause_engine.export import to_dxf, to_report
 from planpause_engine.extract import extract_plan
 from planpause_engine.model import Measurement, PlanModel
 from planpause_engine.pipeline import analyze, issues_from
+from planpause_engine.sheet import to_pdf
 from planpause_engine.preprocess import Prepared, prepare
 from planpause_engine.solver import solve
 
@@ -471,3 +472,125 @@ def test_verwendungszweck_und_checkliste(bungalow):
     md = to_report("B", r["geometry"], issues_from(r), checklist=r["checklist"], purpose="brandschutz",
                    annotations=[{"kind": "handschriftlich", "text": "Wand 1978 entfernt"}])
     assert "## Prüfung vor dem Export" in md and "✘" in md and "Wand 1978 entfernt" in md and "## Geschätzte Bauteile" in md
+
+
+# ------------------------------------------------------------------ Wanderkennung, Regelmaße, Einrichtung (November 2026)
+
+def _zeichnung(scale=2.0):
+    """Synthetischer Scan: Außenwände 24 cm als Doppelstrich mit grauer Füllung, eine 11,5er Innenwand, eine Tür.
+    Liefert (Bild, Planmodell mit bewusst verschobenen Pixellagen)."""
+    from planpause_engine.model import AxisLine, DimChain, PlanModel, Wall
+    img = np.full((1400, 1800), 205, np.uint8)
+    cm = lambda v: int(round(v * scale))  # noqa: E731
+
+    def wall(x0, y0, x1, y1):
+        cv2.rectangle(img, (cm(x0), cm(y0)), (cm(x1), cm(y1)), 150, -1)
+        cv2.rectangle(img, (cm(x0), cm(y0)), (cm(x1), cm(y1)), 40, 4)
+    for r in ((100, 100, 800, 124), (100, 500, 800, 524), (100, 100, 124, 524), (776, 100, 800, 524),
+              (440, 124, 451.5, 300), (440, 400, 451.5, 500)):  # Innenwand mit 100 cm Türlücke
+        wall(*r)
+    off = 9  # px, um die die KI danebenliegt
+    X = {"xa": 100, "xi": 124, "xw0": 440, "xw1": 451.5, "xj": 776, "xb": 800}
+    Y = {"ya": 100, "yi": 124, "yt0": 300, "yt1": 400, "yj": 500, "yb": 524}
+    plan = PlanModel(
+        image_size=(1800, 1400),
+        axes={"x": [AxisLine(id=k, px=cm(v) + off) for k, v in X.items()], "y": [AxisLine(id=k, px=cm(v) - off) for k, v in Y.items()]},
+        chains=[DimChain(id="oben", axis="x", lines=["xa", "xi", "xj", "xb"], values=[24, 652, 24]),
+                DimChain(id="links", axis="y", lines=["ya", "yi", "yj", "yb"], values=[24, 376, 24])],
+        walls=[Wall(x0="xa", x1="xb", y0="ya", y1="yi", kind="aussen"), Wall(x0="xa", x1="xb", y0="yj", y1="yb", kind="aussen"),
+               Wall(x0="xa", x1="xi", y0="ya", y1="yb", kind="aussen"), Wall(x0="xj", x1="xb", y0="ya", y1="yb", kind="aussen"),
+               Wall(x0="xw0", x1="xw1", y0="yi", y1="yt0")])
+    return img, plan, X, Y, scale
+
+
+def test_wandmaske_rastet_linien_ein_und_findet_fehlende_wand():
+    from planpause_engine.walls_cv import coverage, open_gaps, plan_scale, snap_to_walls, wall_mask
+    img, plan, X, Y, scale = _zeichnung()
+    assert plan_scale(plan) == pytest.approx(scale, rel=0.02)
+    mask, f = wall_mask(img, scale)
+    assert 0.05 < (mask > 0).mean() < 0.2  # Wände, nicht das Papier
+    st = snap_to_walls(plan, img, mask, f)
+    assert st["x"] >= 5 and st["y"] >= 4
+    px = {l.id: l.px for ax in ("x", "y") for l in plan.axes[ax]}
+    for k, v in {**X, **Y}.items():
+        if k not in ("yt0", "yt1"):  # Türlaibungen: an ihnen endet nur eine kurze Wand
+            assert px[k] == pytest.approx(v * scale, abs=4), k  # vorher 9 px daneben
+    cov = coverage(plan, mask, f, scale)
+    # das untere Stück der Innenwand (y 400–500) fehlt im Modell und wird als Kandidat gemeldet
+    assert any(abs(b[0] - 440 * scale) < 12 and b[1] > 380 * scale for b in cov["missing"]) and not cov["unsupported"]
+    assert cov["share"] < 1
+    # eine Wand, die es im Bild nicht gibt, fällt auf
+    from planpause_engine.model import AxisLine, Wall
+    plan.axes["x"] += [AxisLine(id="xg0", px=600), AxisLine(id="xg1", px=640)]
+    plan.walls.append(Wall(x0="xg0", x1="xg1", y0="yi", y1="yj"))
+    assert coverage(plan, mask, f, scale)["unsupported"] == [5]
+    plan.walls.pop()
+    # Lücke ohne Öffnung: obere und untere Hälfte der Innenwand, dazwischen fehlt die Tür
+    plan.walls.append(Wall(x0="xw0", x1="xw1", y0="yt1", y1="yj"))
+    gaps = open_gaps(plan, scale)
+    assert len(gaps) == 1 and gaps[0]["walls"] == [4, 5] and gaps[0]["width_cm"] == pytest.approx(100, abs=12)
+
+
+def test_unvermasste_wand_bekommt_regelmass_und_liegt_richtig():
+    img, plan, X, Y, scale = _zeichnung()
+    for ax in ("x", "y"):
+        for l in plan.axes[ax]:
+            l.px = ({**X, **Y}[l.id]) * scale  # exakt eingerastet
+    px = {l.id: l for l in plan.axes["x"]}
+    px["xw1"].px = (440 + 13.4) * scale  # am Bild gemessen: 13,4 statt 11,5 cm
+    sol = solve(plan)
+    assert sol.x.status["xw0"] == "zeichnung" and sol.x.status["xa"] == "mass"
+    assert sol.x.pos["xw1"] - sol.x.pos["xw0"] == pytest.approx(11.5, abs=0.01)   # Regelmaß
+    assert sol.x.pos["xw0"] - sol.x.pos["xa"] == pytest.approx(340.9, abs=1.5)     # Lage zwischen den vermaßten Kanten
+    assert sol.x.pos["xi"] - sol.x.pos["xa"] == 24 and sol.assumed_thickness == [{"wall": 4, "axis": "x", "from": 13.4, "to": 11.5}]
+    r = analyze(plan)
+    assert any(i["id"] == "annahme-wanddicke" for i in r["issues"])
+    assert r["quality"]["level"] == "gut"  # zwei Drittel der Kanten vermaßt; die Annahme macht den Plan nicht schlechter
+
+
+def test_verzogener_scan_wird_stueckweise_ausgeglichen():
+    """Rechte Bildhälfte 4 % gestreckt: unvermaßte Linien zwischen vermaßten bleiben an ihrer Stelle."""
+    from planpause_engine.model import AxisLine, DimChain, PlanModel
+    warp = lambda cm: cm * 2.0 if cm <= 400 else 800 + (cm - 400) * 2.08  # noqa: E731
+    plan = PlanModel(axes={"x": [AxisLine(id="a", px=warp(0)), AxisLine(id="b", px=warp(400)), AxisLine(id="c", px=warp(800)),
+                                 AxisLine(id="u1", px=warp(200)), AxisLine(id="u2", px=warp(600))],
+                           "y": [AxisLine(id="y0", px=0), AxisLine(id="y1", px=600)]},
+                     chains=[DimChain(id="k", axis="x", lines=["a", "b", "c"], values=[400, 400]),
+                             DimChain(id="ky", axis="y", lines=["y0", "y1"], values=[300])])
+    sol = solve(plan)
+    assert sol.x.pos["u1"] == pytest.approx(200, abs=0.5) and sol.x.pos["u2"] == pytest.approx(600, abs=0.5)
+    assert sol.x.to_cm(warp(700)) == pytest.approx(700, abs=0.5)
+
+
+def test_einrichtung_und_hoehenkote_in_geometrie_und_dxf(bungalow):
+    import ezdxf
+    from planpause_engine.model import Annotation, Fixture
+    from planpause_engine.combine import transform_geometry
+    lx, ly = bungalow.axes["x"][3], bungalow.axes["y"][3]
+    bungalow.fixtures = [Fixture(type="badewanne", box=(lx.px + 20, ly.px + 20, lx.px + 130, ly.px + 70)), Fixture(type="wc", box=(10, 10, 12, 12))]
+    bungalow.annotations.append(Annotation(kind="hoehenkote", text="+2,50", at=(lx.id, ly.id)))
+    g = analyze(bungalow)["geometry"]
+    assert [f["type"] for f in g["fixtures"]] == ["badewanne"]  # zu kleine Einrichtung fällt weg
+    x0, y0, x1, y1 = g["fixtures"][0]["rect"]
+    assert 120 < x1 - x0 < 240 and [s[0] for s in g["fixtures"][0]["shapes"]] == ["rect", "ellipse"]
+    assert g["marks"][0]["text"] == "+2,50"
+    doc = ezdxf.read(io.StringIO(to_dxf(g).decode()))
+    assert len(doc.modelspace().query('ELLIPSE[layer=="EINRICHTUNG"]')) == 1 and len(doc.modelspace().query('TEXT[layer=="HOEHEN"]')) == 1
+    t = transform_geometry(g, rot=90)
+    assert t["fixtures"][0]["rect"] != g["fixtures"][0]["rect"] and len(t["marks"]) == 1
+    assert len(to_pdf(g, "Test", "EG")) > 2000
+
+
+def test_mehrere_grundrisse_auf_einem_blatt():
+    from planpause_engine.pdf import find_plans
+    img = np.full((1400, 3000), 240, np.uint8)
+    for k in range(3):
+        x = 250 + k * 950
+        cv2.rectangle(img, (x, 400), (x + 600, 900), 30, 14)
+        cv2.line(img, (x + 300, 400), (x + 300, 900), 30, 10)
+        cv2.line(img, (x, 320), (x + 600, 320), 30, 2)  # Maßkette darüber
+    plans = find_plans(img)
+    assert len(plans) == 3 and plans[0][0] < 250 / 3000 and plans[0][2] <= plans[1][0] + 1e-6 and plans[0][1] < 320 / 1400
+    one = np.full((1400, 1400), 240, np.uint8)
+    cv2.rectangle(one, (300, 300), (1100, 1100), 30, 14)
+    assert find_plans(one) == []

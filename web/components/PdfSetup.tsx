@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 
 export type Crop = [number, number, number, number]; // Anteile der Seite: x0, y0, x1, y1
-type Page = { page: number; mm: [number, number]; thumb: string };
+type Page = { page: number; mm: [number, number]; thumb: string; plans?: Crop[] };  // plans: erkannte Grundrisse auf der Seite
 
 /** PDF: Seite wählen und optional einen Ausschnitt aufziehen (z. B. Grundriss ohne Plankopf). */
 export default function PdfSetup({ file, onChange }: { file: File; onChange: (v: { page: number; crop: Crop | null }) => void }) {
@@ -34,6 +34,16 @@ export default function PdfSetup({ file, onChange }: { file: File; onChange: (v:
             </button>))}
         </div>
       </>)}
+      {(current.plans?.length ?? 0) > 1 && (
+        <div className="pdf-plans">
+          <span className="hint"><b>Auf dieser Seite liegen {current.plans!.length} Grundrisse.</b> Wähle einen aus. Einzeln ausgewertet
+            wird jeder deutlich genauer; lade die Datei für die anderen Geschosse noch einmal hoch.</span>
+          <div className="credits-buy">
+            {current.plans!.map((c, i) => (
+              <button type="button" key={i} className={`btn small${crop && crop.every((v, k) => Math.abs(v - c[k]) < 1e-6) ? " primary" : ""}`}
+                onClick={() => setCrop(c)}>Grundriss {i + 1}</button>))}
+          </div>
+        </div>)}
       <span className="hint">
         Seite {current.page} · {current.mm[0]} × {current.mm[1]} mm. Optional: Ausschnitt mit dem Finger aufziehen, z. B. nur der Grundriss ohne Plankopf und Legende.
       </span>

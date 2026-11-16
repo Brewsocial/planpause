@@ -97,6 +97,19 @@ class AxisSolution:
     conflicts: list[Conflict]
     scale: Optional[float]          # px pro cm
     prior_dev: dict[str, float] = field(default_factory=dict)  # Abweichung Zeichnung vs. Maß
+    calib: list[tuple[float, float]] = field(default_factory=list)  # (Pixel, cm) aller Linien, aufsteigend
+
+    def to_cm(self, px: float) -> Optional[float]:
+        """Bildpixel -> cm, stückweise linear zwischen den Linien (für Dinge ohne eigene Linien, z. B. Sanitär)."""
+        if len(self.calib) < 2:
+            return None
+        ap, ac = [c[0] for c in self.calib], [c[1] for c in self.calib]
+        k = self.scale or (ap[-1] - ap[0]) / max(ac[-1] - ac[0], 1e-6)
+        if px < ap[0]:
+            return ac[0] + (px - ap[0]) / k
+        if px > ap[-1]:
+            return ac[-1] + (px - ap[-1]) / k
+        return float(np.interp(px, ap, ac))
 
 
 @dataclass
@@ -104,6 +117,7 @@ class Solution:
     x: AxisSolution
     y: AxisSolution
     area_constraints: list[Constraint]
+    assumed_thickness: list[dict] = field(default_factory=list)  # Wände, deren Dicke auf ein Regelmaß gesetzt wurde
 
     def ax(self, a: Axis) -> AxisSolution:
         return self.x if a == "x" else self.y
@@ -338,11 +352,108 @@ def solve_axis(plan: PlanModel, axis: Axis, extra: list[Constraint] | None = Non
         if c.kind == "prior" and comp[c.a] == main:
             prior_dev[c.a] = float(r)
 
+    _place_by_drawing(plan, axis, pos, status, comp, main, scale)
+
     # Ursprung: kleinste Lage = 0
     m0 = min(pos.values()) if pos else 0.0
     pos = {k: round(v - m0, 2) for k, v in pos.items()}
     residuals = [(c, float(r)) for r, c in zip(res, used) if c.hard]
-    return AxisSolution(axis, pos, status, sigma, residuals, conflicts, scale, prior_dev)
+    return AxisSolution(axis, pos, status, sigma, residuals, conflicts, scale, prior_dev, _calib(plan, axis, pos))
+
+
+def _calib(plan: PlanModel, axis: Axis, pos: dict[str, float]) -> list[tuple[float, float]]:
+    out: list[tuple[float, float]] = []
+    for p, c in sorted((l.px, pos[l.id]) for l in plan.axes[axis] if l.px is not None and l.id in pos):
+        if not out or (p > out[-1][0] + 1 and c > out[-1][1]):
+            out.append((float(p), float(c)))
+    return out
+
+
+WALL_SIZES = (11.5, 17.5, 24.0, 30.0, 36.5, 42.5)  # cm, übliche Mauerwerksdicken
+
+
+def snap_thickness(plan: PlanModel, xs: AxisSolution, ys: AxisSolution, tol: float = 4.0,
+                   bound: dict[str, set[str]] | None = None) -> list[dict]:
+    """Dicke unvermaßter Wände auf das nächste Regelmaß setzen.
+
+    Aus einem Scan lässt sich eine Wanddicke nur auf 2 bis 3 cm messen; 22,7 cm ist fast sicher eine 24er Wand.
+    Verschoben werden nur Linien, die an keinem Maß hängen (bound: Linien mit Maß, auch außerhalb des Hauptnetzes). Ist eine Seite vermaßt, rückt die andere,
+    sonst bleibt die Wandmitte stehen. Jede Annahme wird zurückgegeben und im Bericht genannt."""
+    done: set[tuple[str, str]] = set()
+    fixed = {"x": {i for i, st in xs.status.items() if st != "zeichnung"}, "y": {i for i, st in ys.status.items() if st != "zeichnung"}}
+    for ax in ("x", "y"):
+        fixed[ax] |= (bound or {}).get(ax, set())
+    jobs = []
+    for n, w in enumerate(plan.walls):
+        dx, dy = abs(xs.pos[w.x1] - xs.pos[w.x0]), abs(ys.pos[w.y1] - ys.pos[w.y0])
+        ax, sol, a, b, length = ("x", xs, w.x0, w.x1, dy) if dx <= dy else ("y", ys, w.y0, w.y1, dx)
+        if sol.pos[a] > sol.pos[b]:
+            a, b = b, a
+        jobs.append((not (a in fixed[ax] or b in fixed[ax]), -length, n, ax, sol, a, b))
+    out = []
+    for _, _, n, ax, sol, a, b in sorted(jobs, key=lambda j: j[:3]):
+        if (ax, a) in done and (ax, b) in done or a in fixed[ax] and b in fixed[ax]:
+            continue
+        t = sol.pos[b] - sol.pos[a]
+        target = min(WALL_SIZES, key=lambda v: abs(v - t))
+        if t < 8 or abs(target - t) > tol or abs(target - t) < 0.05:
+            continue
+        a_fix, b_fix = a in fixed[ax] or (ax, a) in done, b in fixed[ax] or (ax, b) in done
+        if a_fix and b_fix:
+            continue
+        if a_fix:
+            sol.pos[b] = round(sol.pos[a] + target, 2)
+        elif b_fix:
+            sol.pos[a] = round(sol.pos[b] - target, 2)
+        else:
+            mid = (sol.pos[a] + sol.pos[b]) / 2
+            sol.pos[a], sol.pos[b] = round(mid - target / 2, 2), round(mid + target / 2, 2)
+        done.update({(ax, a), (ax, b)})
+        out.append({"wall": n, "axis": ax, "from": round(t, 1), "to": target})
+    if out:  # Ursprung bleibt bei 0
+        for sol in (xs, ys):
+            m0 = min(sol.pos.values())
+            if m0:
+                sol.pos.update({k: round(v - m0, 2) for k, v in sol.pos.items()})
+    return out
+
+
+def _place_by_drawing(plan: PlanModel, axis: Axis, pos: dict[str, float], status: dict[str, str],
+                      comp: dict[str, str], main: Optional[str], scale: Optional[float]) -> None:
+    """Unvermaßte Linien stückweise zwischen den vermaßten einhängen.
+
+    Ein einziger Maßstab für das ganze Bild verschiebt unvermaßte Wände, sobald Scan oder Foto leicht verzogen
+    sind. Die vermaßten Linien kennen ihre Lage in cm und im Bild; zwischen zwei benachbarten wird linear
+    interpoliert. Gruppen unvermaßter Linien, die untereinander durch Maße verbunden sind (eigene kleine Kette),
+    werden als Ganzes verschoben, damit ihre Maße erhalten bleiben."""
+    px = {l.id: l.px for l in plan.axes[axis] if l.px is not None}
+    anchors = sorted((px[i], pos[i]) for i in pos if status[i] != "zeichnung" and i in px)
+    mono: list[tuple[float, float]] = []
+    for p, c in anchors:  # nur Anker, die in Bild und Maß gleich geordnet sind (sonst liegt ein Pixelwert daneben)
+        if not mono or (p > mono[-1][0] + 1 and c > mono[-1][1]):
+            mono.append((p, c))
+    if len(mono) < 2 or not scale:
+        return
+    ap, ac = np.array([m[0] for m in mono]), np.array([m[1] for m in mono])
+
+    def at(p: float) -> float:
+        if p < ap[0]:
+            return float(ac[0] + (p - ap[0]) / scale)
+        if p > ap[-1]:
+            return float(ac[-1] + (p - ap[-1]) / scale)
+        return float(np.interp(p, ap, ac))
+
+    groups: dict[str, list[str]] = {}
+    for lid in pos:
+        if status[lid] == "zeichnung" and lid in px and comp[lid] != main:
+            groups.setdefault(comp[lid], []).append(lid)
+    for ids in groups.values():
+        if len(ids) == 1:
+            pos[ids[0]] = at(px[ids[0]])
+        else:
+            shift = float(np.mean([at(px[i]) - pos[i] for i in ids]))
+            for i in ids:
+                pos[i] += shift
 
 
 def _only_area(lid: str, cons: list[Constraint]) -> bool:
@@ -389,4 +500,9 @@ def solve(plan: PlanModel) -> Solution:
         extra += new
         xs = solve_axis(plan, "x", [c for c in extra if c.label == "x"])
         ys = solve_axis(plan, "y", [c for c in extra if c.label == "y"])
-    return Solution(xs, ys, extra)
+    bound = {ax: {i for c in build_constraints(plan, ax, [e for e in extra if e.label == ax]) if c.hard for i in (c.a, c.b)}
+             for ax in ("x", "y")}
+    assumed = snap_thickness(plan, xs, ys, bound=bound)
+    for sol, ax in ((xs, "x"), (ys, "y")):
+        sol.calib = _calib(plan, ax, sol.pos)
+    return Solution(xs, ys, extra, assumed)

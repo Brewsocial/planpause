@@ -14,6 +14,10 @@ export interface Geometry {
   openings: { type: "window" | "door" | "gate" | "passage"; rect: Rect; estimated: boolean; width_stated: number | null;
     swing: { hinge: [number, number]; r: number; a0: number; a1: number } | null }[];
   features: { type: string; rect: Rect; estimated: boolean; treads: number | null; note: string }[];
+  /** Sanitär und Küche, schematisch: shapes = ["rect"|"line", x0, y0, x1, y1] oder ["ellipse", cx, cy, rx, ry] in cm */
+  fixtures?: { type: string; rect: Rect; note: string; shapes: [string, number, number, number, number][] }[];
+  /** Höhenkoten aus dem Plan an ihrer Stelle */
+  marks?: { kind: string; text: string; at: [number, number] }[];
   rooms: { name: string; area_stated: number | null; area_geom: number | null; poly: [number, number][]; label: [number, number] | null; estimated: boolean; name_assumed?: boolean }[];
   zones: { type: string; poly: [number, number][] }[];
   chains: Chain[];

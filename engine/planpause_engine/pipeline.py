@@ -57,10 +57,13 @@ def assess_quality(plan: PlanModel, stats: dict) -> dict:
     for ax, name in (("x", "waagerechten"), ("y", "senkrechten")):
         if not values[ax]:
             blocking.append(f"Es sind keine {name} Maße lesbar. In dieser Richtung ist der Plan nur geschätzt.")
-    if share < 0.25:
-        blocking.append(f"Nur {round(share * 100)} % der Kanten sind durch Maße festgelegt.")
+    # Wenige Maßketten sind bei Bauakten normal (oft nur Außenmaße). Der Plan bleibt verwendbar: die vermaßten Kanten
+    # stimmen genau, alle übrigen sind am Bild gemessen. Nicht auswertbar ist er erst ohne jede Maßgrundlage.
+    if stats["lines_measured"] < 4:
+        blocking.append("Es sind zu wenige Maße lesbar, um den Plan zu vermaßen.")
     elif share < 0.5:
-        limiting.append(f"Nur {round(share * 100)} % der Kanten sind durch Maße festgelegt, der Rest stammt aus der Zeichnung.")
+        limiting.append(f"{round(share * 100)} % der Kanten sind durch Maße festgelegt. Alle übrigen sind am Bild gemessen "
+                        "(Genauigkeit etwa ±2 bis 3 cm) und im Plan als geschätzt gekennzeichnet.")
     if n_values and n_uncertain / n_values >= 0.5:
         limiting.append(f"{n_uncertain} von {n_values} Maßzahlen waren schwer lesbar.")
     if stats["conflicts"] >= 3 and stats["conflicts"] > stats["chains_total"] / 2:

@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 from .model import Axis, PlanModel
 from .purpose import PURPOSES, purpose_label
-from .solver import Conflict, Solution, fmt
+from .solver import WALL_SIZES, Conflict, Solution, fmt
 
 
 class MeasureHint(BaseModel):
@@ -26,6 +26,11 @@ class Issue(BaseModel):
     at: list[float] | None = None
     source: str = "Rechenprüfung"
     measure: list[MeasureHint] = Field(default_factory=list)
+
+
+def _wall(geom: dict, i: int) -> dict:
+    """Gezeichnete Wand zu einer Wand des Planmodells (Wände mit Öffnungen sind in der Geometrie geteilt)."""
+    return next((w for w in geom["walls"] if w.get("src") == i), geom["walls"][min(i, len(geom["walls"]) - 1)])
 
 
 def _label(plan: PlanModel, axis: Axis, lid: str) -> str:
@@ -117,12 +122,12 @@ def determinacy_issues(plan: PlanModel, sol: Solution, geom: dict) -> list[Issue
     for n, ((ax, a, b), idxs) in enumerate(floating.items()):
         kinds = {plan.walls[i].kind for i in idxs}
         kind = "Brandwand" if "brand" in kinds else "Außenwand" if "aussen" in kinds else "Innenwand"
-        g = geom["walls"][idxs[0]]["rect"]
+        g = _wall(geom, idxs[0])["rect"]
         ref = nearest_fixed(ax, a)
         s = sol.ax(ax)
         hints = [MeasureHint(axis=ax, a=ref, b=a, expected=round(abs(s.pos[a] - s.pos[ref]), 1),
                              text=f"{_label(plan, ax, ref)} bis {_label(plan, ax, a)}")] if ref else []
-        r = geom["walls"][idxs[0]]["rect"]
+        r = _wall(geom, idxs[0])["rect"]
         thick = min(r[2] - r[0], r[3] - r[1])
         span = abs(s.pos[b] - s.pos[a])
         hints.append(MeasureHint(axis=ax, a=a, b=b, expected=round(span, 1),
@@ -133,6 +138,16 @@ def determinacy_issues(plan: PlanModel, sol: Solution, geom: dict) -> list[Issue
                                  f"Sie wurde aus der Zeichnung platziert (etwa ± {fmt(s.sigma[a])} cm)."),
                          action="Abstand zur nächsten bemaßten Wand und die Wanddicke messen.",
                          at=[(g[0] + g[2]) / 2, (g[1] + g[3]) / 2], measure=hints))
+    # Bei Plänen mit wenigen Maßketten ist fast jede Innenwand unvermaßt: ein Sammelpunkt statt dutzender gleicher Hinweise
+    inner = [i for i in out if i.severity == "info"]
+    if len(inner) > 6:
+        out = [i for i in out if i.severity != "info"]
+        out.append(Issue(id="lage-innenwaende", severity="info", category="Unvermaßt",
+                         title=f"{len(inner)} Innenwände: Lage nicht bemaßt",
+                         detail=("Für diese Wände steht keine Maßkette im Plan. Ihre Lage ist am Bild gemessen und zwischen den vermaßten "
+                                 "Kanten eingehängt (etwa ±2 bis 3 cm). Sie sind im Plan als geschätzt gekennzeichnet."),
+                         action="Wo es auf den Zentimeter ankommt, Abstand zur nächsten bemaßten Wand vor Ort messen und eintragen.",
+                         measure=[h for i in inner[:6] for h in i.measure[:1]]))
     if thin:
         hints = []
         for (ax, l), i in list(thin.items())[:12]:
@@ -323,7 +338,10 @@ def geometry_issues(geom: dict) -> list[Issue]:
 def thickness_issues(plan: PlanModel, sol: Solution, geom: dict) -> list[Issue]:
     """Gleicher Wandtyp, gleiche Dicke innerhalb eines Geschosses. Ausreißer nur, wenn sie so bemaßt sind."""
     by_kind: dict[str, list[tuple[float, bool, dict]]] = {}
-    for w, pw in zip(geom["walls"], plan.walls):
+    for w in geom["walls"]:
+        pw = plan.walls[w.get("src", 0)] if "src" in w else None
+        if pw is None:
+            continue
         x0, y0, x1, y1 = w["rect"]
         flat = x1 - x0 >= y1 - y0
         ax, a, b = ("y", pw.y0, pw.y1) if flat else ("x", pw.x0, pw.x1)
@@ -336,7 +354,9 @@ def thickness_issues(plan: PlanModel, sol: Solution, geom: dict) -> list[Issue]:
             continue
         ts = sorted(t for t, _, _ in items)
         usual = ts[len(ts) // 2]
-        odd = [(t, w) for t, measured, w in items if not measured and abs(t - usual) > max(3.0, 0.25 * usual)]
+        # Übliche Mauerwerksdicken sind kein Ausreißer: ein Geschoss hat fast immer 11,5er und 24er Innenwände nebeneinander
+        regular = lambda t: any(abs(t - v) <= 1.0 for v in WALL_SIZES)  # noqa: E731
+        odd = [(t, w) for t, measured, w in items if not measured and abs(t - usual) > max(3.0, 0.25 * usual) and not regular(t)]
         if not odd:
             continue
         listed = ", ".join(fmt(round(t, 1)) for t, _ in odd[:5])
@@ -347,6 +367,22 @@ def thickness_issues(plan: PlanModel, sol: Solution, geom: dict) -> list[Issue]:
                          action="Wanddicke an einer Laibung messen. Stimmt das übliche Maß, Wand entsprechend korrigieren.",
                          at=_center(odd[0][1]["rect"])))
     return out
+
+
+def assumption_issues(sol: Solution, geom: dict) -> list[Issue]:
+    """Annahmen offenlegen: Wanddicken, die auf ein Regelmaß gesetzt wurden."""
+    a = sol.assumed_thickness
+    if not a:
+        return []
+    sizes = sorted({x["to"] for x in a})
+    first = _wall(geom, a[0]["wall"])["rect"] if geom["walls"] else None
+    return [Issue(id="annahme-wanddicke", severity="info", category="Annahme",
+                  title=f"{len(a)} Wanddicken auf Regelmaße gesetzt ({', '.join(fmt(v) for v in sizes)} cm)",
+                  detail=("Diese Wände sind im Plan nicht vermaßt. Aus dem Bild lässt sich eine Wanddicke nur auf 2 bis 3 cm messen, "
+                          "deshalb wurde das nächstliegende übliche Mauerwerksmaß eingesetzt. Das ist eine Annahme: "
+                          "11,5 und 17,5 cm lassen sich bei dünnen Wänden nicht sicher unterscheiden."),
+                  action="Wo die Wanddicke zählt (Durchbruch, Statik, Schallschutz), an einer Laibung nachmessen.",
+                  at=_center(first) if first else None)]
 
 
 def _hits(r: list[float], others: list[tuple[int, list[float]]], eps: float = 1.0) -> list[int]:
@@ -476,7 +512,7 @@ SEV = {"kritisch": 0, "pruefen": 1, "info": 2}
 def run_checks(plan: PlanModel, sol: Solution, geom: dict, purpose: str | None = None) -> list[Issue]:
     issues = (conflict_issues(plan, sol, geom) + geometry_issues(geom) + room_issues(plan, sol, geom) + determinacy_issues(plan, sol, geom)
               + door_issues(plan, geom) + drawing_issues(plan, sol) + plausibility_issues(plan, sol, geom) + thickness_issues(plan, sol, geom)
-              + contour_issues(geom) + purpose_issues(plan, geom, purpose) + ai_issues(plan, sol))
+              + assumption_issues(sol, geom) + contour_issues(geom) + purpose_issues(plan, geom, purpose) + ai_issues(plan, sol))
     rank = PURPOSES.get(purpose or "", {}).get("rank", [])  # Prüfpunkte nach Bedeutung für den Verwendungszweck
     issues.sort(key=lambda i: (SEV.get(i.severity, 3), rank.index(i.category) if i.category in rank else len(rank), i.source != "Solver"))
     return issues

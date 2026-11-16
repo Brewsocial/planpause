@@ -27,7 +27,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   if (denied) return (
     <main className="sheet auth">
       <h2>Kein Zugang zu Planpause</h2>
-      <p className="muted">{denied} Für ein eigenes Konto bitte abmelden und unter „Jetzt ausprobieren“ registrieren.</p>
+      <p className="muted">{denied} Für ein eigenes Konto bitte abmelden und unter „Jetzt starten“ registrieren.</p>
       <button className="btn" onClick={() => supabase?.auth.signOut().then(() => { window.location.href = "/login"; })}>Abmelden</button>
     </main>
   );

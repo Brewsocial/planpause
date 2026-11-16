@@ -37,12 +37,6 @@ export default function PlanView({ geom, issues, selected, onSelect, showPins, s
 
   return (
     <svg viewBox={vb.join(" ")} role="img" aria-label="Digitalisierter Grundriss" className={image ? "ov" : undefined}>
-      <defs>
-        <pattern id="hatch" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-          <rect width="9" height="9" style={{ fill: "var(--wall-tint)" }} />
-          <line x1="0" y1="0" x2="0" y2="9" style={{ stroke: "var(--wall)", strokeWidth: 2.2 }} />
-        </pattern>
-      </defs>
       {image && (
         <image href={image.url} x={-image.t.x.offset / image.t.x.scale} y={-image.t.y.offset / image.t.y.scale}
                width={image.w / image.t.x.scale} height={image.h / image.t.y.scale} preserveAspectRatio="none"
@@ -61,7 +55,7 @@ export default function PlanView({ geom, issues, selected, onSelect, showPins, s
             <g key={i}><rect className="p-win" x={x0} y={y0} width={x1 - x0} height={y1 - y0} />
               {horiz ? <line className="p-thin" x1={x0} x2={x1} y1={(y0 + y1) / 2} y2={(y0 + y1) / 2} /> : <line className="p-thin" y1={y0} y2={y1} x1={(x0 + x1) / 2} x2={(x0 + x1) / 2} />}</g>);
           if (o.type === "gate") return <line key={i} className="p-gate" x1={x0} x2={x1} y1={(y0 + y1) / 2} y2={(y0 + y1) / 2} />;
-          if (!o.swing) return null;
+          if (!o.swing) return <rect key={i} className="p-door" x={x0} y={y0} width={x1 - x0} height={y1 - y0}><title>{o.type === "passage" ? "Durchgang" : "Tür"}</title></rect>;
           const { hinge: [hx, hy], r, a0, a1 } = o.swing;
           const rad = (a: number) => (a * Math.PI) / 180;
           const p0 = [hx + r * Math.cos(rad(a0)), hy + r * Math.sin(rad(a0))];
@@ -79,12 +73,27 @@ export default function PlanView({ geom, issues, selected, onSelect, showPins, s
           const vert = y1 - y0 >= x1 - x0;
           return (
             <g key={i}>
-              <rect className={stair ? "p-win" : "p-feat"} x={x0} y={y0} width={x1 - x0} height={y1 - y0}><title>{f.type}{f.note ? `: ${f.note}` : ""}</title></rect>
+              <rect className={stair ? "p-stair" : "p-feat"} x={x0} y={y0} width={x1 - x0} height={y1 - y0}><title>{f.type}{f.note ? `: ${f.note}` : ""}</title></rect>
               {stair && Array.from({ length: n - 1 }, (_, k) => vert
                 ? <line key={k} className="p-thin" x1={x0} x2={x1} y1={y0 + ((y1 - y0) * (k + 1)) / n} y2={y0 + ((y1 - y0) * (k + 1)) / n} />
                 : <line key={k} className="p-thin" y1={y0} y2={y1} x1={x0 + ((x1 - x0) * (k + 1)) / n} x2={x0 + ((x1 - x0) * (k + 1)) / n} />)}
+              {/(schacht|aufzug|schornstein|kamin)/i.test(f.type) && <>
+                <line className="p-thin" x1={x0} y1={y0} x2={x1} y2={y1} /><line className="p-thin" x1={x0} y1={y1} x2={x1} y2={y0} /></>}
             </g>);
         })}
+        {(geom.fixtures ?? []).map((fx, i) => (
+          <g key={i} className="p-fix"><title>{fx.type}</title>
+            {fx.shapes.map((s, k) => s[0] === "rect" ? <rect key={k} x={s[1]} y={s[2]} width={s[3] - s[1]} height={s[4] - s[2]} />
+              : s[0] === "line" ? <line key={k} x1={s[1]} y1={s[2]} x2={s[3]} y2={s[4]} />
+              : <ellipse key={k} cx={s[1]} cy={s[2]} rx={Math.max(0, s[3])} ry={Math.max(0, s[4])} />)}
+          </g>))}
+        {(geom.marks ?? []).map((m, i) => (
+          <g key={i}>
+            <circle className="p-mark" cx={m.at[0]} cy={m.at[1]} r={9} />
+            <line className="p-mark" x1={m.at[0] - 9} x2={m.at[0] + 9} y1={m.at[1]} y2={m.at[1]} />
+            <line className="p-mark" y1={m.at[1] - 9} y2={m.at[1] + 9} x1={m.at[0]} x2={m.at[0]} />
+            <text className="p-marktxt" x={m.at[0] + 14} y={m.at[1] + 5}>{m.text}</text>
+          </g>))}
         {geom.rooms.map((r, i) => {
           if (!r.label) return null;
           const bad = r.area_geom != null && r.area_stated ? Math.abs(r.area_geom - r.area_stated) / r.area_stated > 0.03 : false;
